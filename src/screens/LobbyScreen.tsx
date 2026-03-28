@@ -11,23 +11,19 @@ interface Player {
 }
 
 interface LobbyScreenProps {
-  lobbyCode: string;
   players: Player[];
-  currentUserId: string;
-  onSelectCharacter: () => void;
-  onReady: () => void;
+  onSelectCharacter: (playerId: string) => void;
+  onStart: () => void;
   onLeave: () => void;
 }
 
 export function LobbyScreen({
-  lobbyCode,
   players,
-  currentUserId,
   onSelectCharacter,
-  onReady,
+  onStart,
   onLeave,
 }: LobbyScreenProps) {
-  const currentPlayer = players.find((p) => p.id === currentUserId);
+  const currentPlayer = players[0]; // Simulation holder
   const teamBlue = players.filter((p) => p.team === 'blue').sort((a, b) => a.position - b.position);
   const teamRed = players.filter((p) => p.team === 'red').sort((a, b) => a.position - b.position);
 
@@ -44,7 +40,7 @@ export function LobbyScreen({
     }
 
     const characterData = player.characterClass ? CHARACTERS[player.characterClass] : null;
-    const isCurrentPlayer = player.id === currentUserId;
+    const isCurrentPlayer = player.id === currentPlayer?.id;
 
     return (
       <div className="relative">
@@ -57,7 +53,8 @@ export function LobbyScreen({
         )}
 
         <div
-          className={`relative border-4 h-72 transition-all ${
+          onClick={() => onSelectCharacter(player.id)}
+          className={`relative border-4 h-72 transition-all cursor-pointer hover:brightness-125 ${
             player.team === 'blue'
               ? 'border-cyan-400 bg-gradient-to-b from-cyan-900/30 to-slate-900/50'
               : 'border-red-400 bg-gradient-to-b from-red-900/30 to-slate-900/50'
@@ -185,25 +182,20 @@ export function LobbyScreen({
             </div>
 
             <div className="flex gap-4">
-              <button
-                onClick={onSelectCharacter}
-                disabled={currentPlayer?.isReady}
-                className="bg-slate-700 hover:bg-slate-600 border-2 border-cyan-400 text-white px-8 py-3 flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Swords className="w-5 h-5" />
-                <span className="font-bold tracking-wider">SELECT CHARACTER</span>
-              </button>
+              <div className="text-slate-500 italic text-sm w-64 text-center">
+                Click any character card above to select their class
+              </div>
 
               <button
-                onClick={onReady}
-                disabled={!currentPlayer?.characterClass || currentPlayer?.isReady}
+                onClick={onStart}
+                disabled={!players.every(p => p.characterClass)}
                 className="relative group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="absolute inset-0 bg-black transform translate-x-1 translate-y-1"></div>
                 <div className="relative bg-lime-400 hover:bg-lime-300 border-2 border-black px-10 py-3 flex items-center gap-3 transform -skew-x-6 transition-all">
                   <Swords className="w-5 h-5 text-black skew-x-6" />
                   <span className="text-black font-black text-lg tracking-wider skew-x-6">
-                    READY UP
+                    START BATTLE
                   </span>
                 </div>
               </button>

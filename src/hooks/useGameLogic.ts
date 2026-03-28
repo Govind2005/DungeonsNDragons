@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+// import { supabase } from '../lib/supabase';
 import { CharacterClass, CHARACTERS } from '../lib/gameData';
 
 export type GameScreen = 'home' | 'login' | 'lobby' | 'battle' | 'result' | 'leaderboard';
@@ -34,162 +34,255 @@ export function useGameLogic(userId: string | undefined) {
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]);
 
+  const [lastAction, setLastAction] = useState<any>(null);
+
   const createMatch = async () => {
     if (!userId) return;
 
     const lobbyCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newMatch: Match = {
+      id: Math.random().toString(36).substring(2, 15),
+      lobbyCode,
+      status: 'waiting',
+      currentTurn: 0,
+      winnerTeam: null,
+    };
 
-    const { data: match, error } = await supabase
-      .from('matches')
-      .insert({
-        lobby_code: lobbyCode,
-        status: 'waiting',
-        team_blue_player1_id: userId,
-      })
-      .select()
-      .single();
+    setCurrentMatch(newMatch);
+    
+    const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
+    const teams: ('blue' | 'red')[] = ['blue', 'red', 'blue', 'red'];
+    
+    // Initialize 4 slots without classes
+    const players: MatchPlayer[] = profiles.slice(0, 4).map((profile: any, index: number) => ({
+      id: profile.id,
+      username: profile.username,
+      team: teams[index],
+      characterClass: null,
+      currentHp: 0,
+      maxHp: 0,
+      currentMana: 0,
+      maxMana: 0,
+      attackPowerBuff: 0,
+      isReady: false,
+      isInvisible: false,
+      isBound: false,
+      isWeakened: false,
+      position: index,
+    }));
 
-    if (error) {
-      console.error('Error creating match:', error);
-      return;
-    }
-
-    if (match) {
-      setCurrentMatch(match as Match);
-      setCurrentScreen('lobby');
-    }
+    setMatchPlayers(players);
+    setCurrentScreen('lobby');
   };
 
-  const selectCharacter = async (characterClass: CharacterClass) => {
-    if (!userId || !currentMatch) return;
-
+  const selectCharacterForPlayer = (playerId: string, characterClass: CharacterClass) => {
     const characterData = CHARACTERS[characterClass];
+    setMatchPlayers(prev => prev.map(p => {
+      if (p.id === playerId) {
+        return {
+          ...p,
+          characterClass,
+          maxHp: characterData.maxHp,
+          currentHp: characterData.maxHp,
+          maxMana: characterData.maxMana,
+          currentMana: characterData.maxMana,
+        };
+      }
+      return p;
+    }));
+  };
 
-    const { data: existingPlayer } = await supabase
-      .from('match_players')
-      .select()
-      .eq('match_id', currentMatch.id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (existingPlayer) {
-      await supabase
-        .from('match_players')
-        .update({
-          character_class: characterClass,
-          max_hp: characterData.maxHp,
-          current_hp: characterData.maxHp,
-          max_mana: characterData.maxMana,
-          current_mana: characterData.maxMana,
-        })
-        .eq('id', existingPlayer.id);
+  const startGame = () => {
+    if (matchPlayers.every(p => p.characterClass)) {
+      setCurrentMatch(prev => prev ? { ...prev, status: 'battle' } : null);
+      setCurrentScreen('battle');
     } else {
-      await supabase.from('match_players').insert({
-        match_id: currentMatch.id,
-        user_id: userId,
-        team: 'blue',
-        character_class: characterClass,
-        current_hp: characterData.maxHp,
-        max_hp: characterData.maxHp,
-        current_mana: characterData.maxMana,
-        max_mana: characterData.maxMana,
-        position: 0,
-      });
-    }
-
-    loadMatchPlayers();
-  };
-
-  const toggleReady = async () => {
-    if (!userId || !currentMatch) return;
-
-    const player = matchPlayers.find((p) => p.id === userId);
-    if (!player) return;
-
-    await supabase
-      .from('match_players')
-      .update({ is_ready: !player.isReady })
-      .eq('match_id', currentMatch.id)
-      .eq('user_id', userId);
-
-    loadMatchPlayers();
-  };
-
-  const loadMatchPlayers = async () => {
-    if (!currentMatch) return;
-
-    const { data: players } = await supabase
-      .from('match_players')
-      .select(`
-        *,
-        profiles:user_id (username)
-      `)
-      .eq('match_id', currentMatch.id);
-
-    if (players) {
-      const formattedPlayers = players.map((p: any) => ({
-        id: p.user_id,
-        username: p.profiles?.username || 'Unknown',
-        team: p.team,
-        characterClass: p.character_class,
-        currentHp: p.current_hp,
-        maxHp: p.max_hp,
-        currentMana: p.current_mana,
-        maxMana: p.max_mana,
-        attackPowerBuff: p.attack_power_buff,
-        isReady: p.is_ready,
-        isInvisible: p.is_invisible,
-        isBound: p.is_bound,
-        isWeakened: p.is_weakened,
-        position: p.position,
-      }));
-
-      setMatchPlayers(formattedPlayers);
+      alert("Please select characters for all 4 players!");
     }
   };
 
   const performAttack = async (abilityId: string, targetIds: string[]) => {
-    if (!userId || !currentMatch) return;
+    if (!currentMatch || matchPlayers.length === 0) return;
+
+    const currentPlayer = matchPlayers[currentMatch.currentTurn];
+    const ability = CHARACTERS[currentPlayer.characterClass!].abilities.find(a => a.id === abilityId);
+    
+    if (!ability || currentPlayer.currentMana < ability.manaCost) return;
+
+    setMatchPlayers(prevPlayers => {
+      let newPlayers = [...prevPlayers];
+      const actor = newPlayers[currentMatch.currentTurn];
+      
+      // Consume Mana (ensure not negative)
+      actor.currentMana = Math.max(0, actor.currentMana - ability.manaCost);
+
+      let totalDamage = 0;
+      let logBuffer = `${actor.username} used ${ability.name}! `;
+
+      // Apply Damage and Effects
+      newPlayers = newPlayers.map(p => {
+        if (targetIds.includes(p.id)) {
+          let damage = ability.damage || 0;
+          
+          // Buff calculation
+          damage = Math.floor(damage * (1 + actor.attackPowerBuff / 100));
+          
+          // Invisible check
+          if (p.isInvisible) {
+            damage = 0;
+            p.isInvisible = false;
+            logBuffer += `${p.username} evaded! `;
+          } else {
+            p.currentHp = Math.max(0, p.currentHp - damage);
+            totalDamage += damage;
+          }
+
+          // Ability specific effects
+          if (abilityId === 'pinning_arrow') {
+            p.isBound = true;
+            logBuffer += `${p.username} was BOUND! `;
+          }
+          if (abilityId === 'cataclysm') {
+            p.isWeakened = true;
+            p.maxHp = Math.floor(p.maxHp * 0.9);
+            p.maxMana = Math.floor(p.maxMana * 0.9);
+            p.attackPowerBuff -= 10;
+            logBuffer += `${p.username} was WEAKENED! `;
+          }
+          if (abilityId === 'mind_siphon') {
+            p.currentMana = Math.max(0, p.currentMana - 15);
+            logBuffer += `${p.username}'s mana was drained! `;
+          }
+        }
+        return p;
+      });
+
+      // Ability self effects
+      if (abilityId === 'shield_bash') {
+        actor.currentHp = Math.min(actor.maxHp, actor.currentHp + 25);
+        logBuffer += `${actor.username} gained a SHIELD! `;
+      }
+      if (abilityId === 'vanguard_charge') {
+        newPlayers = newPlayers.map(p => {
+          if (p.team === actor.team) p.attackPowerBuff += 10;
+          return p;
+        });
+        logBuffer += `Team Buffed! `;
+      }
+
+      setLastAction({
+        playerName: actor.username,
+        abilityName: ability.name,
+        damage: totalDamage,
+        description: logBuffer
+      });
+
+      return newPlayers;
+    });
+
+    advanceTurn();
   };
 
   const performDefense = async (abilityId: string) => {
-    if (!userId || !currentMatch) return;
+    if (!currentMatch) return;
+    const currentPlayer = matchPlayers[currentMatch.currentTurn];
+    const ability = CHARACTERS[currentPlayer.characterClass!].abilities.find(a => a.id === abilityId);
+    if (!ability || currentPlayer.currentMana < ability.manaCost) return;
+
+    setMatchPlayers(prevPlayers => {
+      const newPlayers = [...prevPlayers];
+      const p = newPlayers[currentMatch.currentTurn];
+      
+      p.currentMana = Math.max(0, p.currentMana - ability.manaCost);
+      let logBuffer = `${p.username} used ${ability.name}. `;
+
+      if (abilityId === 'guard_gather') {
+        p.currentMana = Math.min(p.maxMana, p.currentMana + 20);
+        logBuffer += `Mana restored! `;
+      }
+      if (abilityId === 'war_cry') {
+        p.attackPowerBuff += 15;
+        logBuffer += `Attack Power up! `;
+      }
+      if (abilityId === 'divine_rest') {
+        p.currentHp = Math.min(p.maxHp, p.currentHp + 45);
+        logBuffer += `Healed self! `;
+      }
+      if (abilityId === 'shadow_meld') {
+        p.isInvisible = true;
+        logBuffer += `Became INVISIBLE! `;
+      }
+      if (abilityId === 'aura_of_life') {
+        newPlayers.forEach(player => {
+          if (player.team === p.team) player.currentHp = Math.min(player.maxHp, player.currentHp + 35);
+        });
+        logBuffer += `Team HEALED! `;
+      }
+
+      setLastAction({
+        playerName: p.username,
+        abilityName: ability.name,
+        damage: 0,
+        description: logBuffer
+      });
+
+      return newPlayers;
+    });
+
+    advanceTurn();
+  };
+
+  const advanceTurn = () => {
+    // Check for win condition
+    const blueTeamDead = matchPlayers.length > 0 && matchPlayers.filter(p => p.team === 'blue').every(p => p.currentHp <= 0);
+    const redTeamDead = matchPlayers.length > 0 && matchPlayers.filter(p => p.team === 'red').every(p => p.currentHp <= 0);
+
+    if (blueTeamDead || redTeamDead) {
+      setCurrentMatch(prev => prev ? { ...prev, status: 'finished', winnerTeam: blueTeamDead ? 'red' : 'blue' } : null);
+      setCurrentScreen('result');
+      return;
+    }
+
+    setCurrentMatch(prev => {
+      if (!prev) return null;
+      let nextTurn = (prev.currentTurn + 1) % 4;
+      
+      // Skip dead or bound players
+      let attempts = 0;
+      while (matchPlayers.length === 4 && (matchPlayers[nextTurn].currentHp <= 0 || matchPlayers[nextTurn].isBound) && attempts < 4) {
+        if (matchPlayers[nextTurn].isBound) {
+          // Clear bound and skip
+          setMatchPlayers(p => {
+            const np = [...p];
+            np[nextTurn].isBound = false;
+            return np;
+          });
+          setLastAction((prevLog: any) => ({
+            ...prevLog,
+            description: (prevLog?.description || '') + ` ${matchPlayers[nextTurn].username} is BOUND and skips turn!`
+          }));
+        }
+        nextTurn = (nextTurn + 1) % 4;
+        attempts++;
+      }
+
+      return { ...prev, currentTurn: nextTurn };
+    });
   };
 
   useEffect(() => {
-    if (currentMatch) {
-      loadMatchPlayers();
-
-      const channel = supabase
-        .channel(`match:${currentMatch.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'match_players',
-            filter: `match_id=eq.${currentMatch.id}`,
-          },
-          () => {
-            loadMatchPlayers();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [currentMatch]);
+    // No auto-start, user clicks "READY UP" (repurposed as "START GAME")
+  }, [matchPlayers, currentMatch]);
 
   return {
     currentScreen,
     setCurrentScreen,
     currentMatch,
     matchPlayers,
+    lastAction,
     createMatch,
-    selectCharacter,
-    toggleReady,
+    selectCharacterForPlayer,
+    startGame,
     performAttack,
     performDefense,
   };

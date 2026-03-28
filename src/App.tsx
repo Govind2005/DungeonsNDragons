@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { useGameLogic } from './hooks/useGameLogic';
-import { supabase } from './lib/supabase';
+// import { supabase } from './lib/supabase';
 
 import { HomeScreen } from './screens/HomeScreen';
-import { LoginScreen } from './screens/LoginScreen';
+// import { LoginScreen } from './screens/LoginScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -12,20 +12,23 @@ import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { CharacterSelectModal } from './components/CharacterSelectModal';
 
 function App() {
-  const { user, loading, signIn, signUp } = useAuth();
+  const { user, loading } = useAuth();
+  const [showCharacterSelect, setShowCharacterSelect] = useState(false);
+  const [selectingForPlayer, setSelectingForPlayer] = useState<string | null>(null);
+
   const {
     currentScreen,
     setCurrentScreen,
     currentMatch,
     matchPlayers,
+    lastAction,
     createMatch,
-    selectCharacter,
-    toggleReady,
+    selectCharacterForPlayer,
+    startGame,
     performAttack,
     performDefense,
   } = useGameLogic(user?.id);
 
-  const [showCharacterSelect, setShowCharacterSelect] = useState(false);
   const [playerProfile, setPlayerProfile] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
@@ -35,39 +38,31 @@ function App() {
     }
   }, [user]);
 
-  const loadPlayerProfile = async () => {
+  const loadPlayerProfile = () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
+    const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
+    const profile = profiles.find((p: any) => p.id === user.id);
 
-    if (data) {
-      setPlayerProfile(data);
+    if (profile) {
+      setPlayerProfile(profile);
     }
   };
 
-  const loadLeaderboard = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('xp', { ascending: false })
-      .limit(50);
+  const loadLeaderboard = () => {
+    const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
+    const sorted = [...profiles].sort((a: any, b: any) => b.xp - a.xp).slice(0, 50);
 
-    if (data) {
-      const formattedLeaderboard = data.map((profile, index) => ({
-        rank: index + 1,
-        username: profile.username,
-        level: profile.level,
-        xp: profile.xp,
-        wins: profile.total_wins,
-        losses: profile.total_losses,
-      }));
+    const formattedLeaderboard = sorted.map((profile: any, index: number) => ({
+      rank: index + 1,
+      username: profile.username,
+      level: profile.level,
+      xp: profile.xp,
+      wins: profile.total_wins,
+      losses: profile.total_losses,
+    }));
 
-      setLeaderboard(formattedLeaderboard);
-    }
+    setLeaderboard(formattedLeaderboard);
   };
 
   const handleStartQuest = async () => {
@@ -79,15 +74,6 @@ function App() {
     setCurrentScreen('leaderboard');
   };
 
-  const handleLogin = async (email: string, password: string) => {
-    await signIn(email, password);
-    setCurrentScreen('home');
-  };
-
-  const handleSignUp = async (email: string, password: string, username: string) => {
-    await signUp(email, password, username);
-    setCurrentScreen('home');
-  };
 
   if (loading) {
     return (
@@ -100,7 +86,13 @@ function App() {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} onSignUp={handleSignUp} />;
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-lime-400 font-black animate-pulse">
+           INITIALIZING...
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -116,8 +108,7 @@ function App() {
 
       {currentScreen === 'lobby' && currentMatch && (
         <LobbyScreen
-          lobbyCode={currentMatch.lobbyCode}
-          players={matchPlayers.map((p) => ({
+          players={matchPlayers.map((p: any) => ({
             id: p.id,
             username: p.username,
             team: p.team,
@@ -125,9 +116,11 @@ function App() {
             isReady: p.isReady,
             position: p.position,
           }))}
-          currentUserId={user.id}
-          onSelectCharacter={() => setShowCharacterSelect(true)}
-          onReady={toggleReady}
+          onSelectCharacter={(playerId: string) => {
+            setSelectingForPlayer(playerId);
+            setShowCharacterSelect(true);
+          }}
+          onStart={startGame}
           onLeave={() => {
             setCurrentScreen('home');
           }}
@@ -136,7 +129,7 @@ function App() {
 
       {currentScreen === 'battle' && currentMatch && matchPlayers.length > 0 && (
         <BattleScreen
-          players={matchPlayers.filter((p) => p.characterClass).map((p) => ({
+          players={matchPlayers.map((p: any) => ({
             id: p.id,
             username: p.username,
             team: p.team,
@@ -146,11 +139,15 @@ function App() {
             currentMana: p.currentMana,
             maxMana: p.maxMana,
             position: p.position,
+            attackPowerBuff: p.attackPowerBuff,
+            isBound: p.isBound,
+            isWeakened: p.isWeakened,
+            isInvisible: p.isInvisible,
           }))}
           currentTurn={currentMatch.currentTurn}
-          currentUserId={user.id}
           onAttack={performAttack}
           onDefense={performDefense}
+          lastAction={lastAction}
         />
       )}
 
@@ -207,8 +204,15 @@ function App() {
 
       <CharacterSelectModal
         isOpen={showCharacterSelect}
-        onClose={() => setShowCharacterSelect(false)}
-        onSelect={selectCharacter}
+        onClose={() => {
+          setShowCharacterSelect(false);
+          setSelectingForPlayer(null);
+        }}
+        onSelect={(characterClass) => {
+          if (selectingForPlayer) {
+            selectCharacterForPlayer(selectingForPlayer, characterClass);
+          }
+        }}
       />
     </>
   );

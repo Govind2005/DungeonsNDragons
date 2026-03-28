@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, Settings, User, Swords, Shield, Package } from 'lucide-react';
+import { BarChart3, Settings, User, Swords, Shield } from 'lucide-react';
 import { CharacterClass, CHARACTERS, Ability } from '../lib/gameData';
 
 interface BattlePlayer {
@@ -12,35 +12,38 @@ interface BattlePlayer {
   currentMana: number;
   maxMana: number;
   position: number;
+  attackPowerBuff: number;
+  isBound: boolean;
+  isWeakened: boolean;
+  isInvisible: boolean;
 }
 
 interface BattleScreenProps {
   players: BattlePlayer[];
   currentTurn: number;
-  currentUserId: string;
   onAttack: (abilityId: string, targetIds: string[]) => void;
   onDefense: (abilityId: string) => void;
   lastAction?: {
     playerName: string;
     abilityName: string;
     damage: number;
+    description: string;
   };
 }
 
 export function BattleScreen({
   players,
   currentTurn,
-  currentUserId,
   onAttack,
   onDefense,
   lastAction,
 }: BattleScreenProps) {
-  const [selectedTab, setSelectedTab] = useState<'attack' | 'defense' | 'items'>('attack');
+  const [selectedTab, setSelectedTab] = useState<'attack' | 'defense'>('attack');
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
 
   const currentPlayer = players.find((p) => p.position === currentTurn);
-  const isMyTurn = currentPlayer?.id === currentUserId;
-  const myPlayer = players.find((p) => p.id === currentUserId);
+  const isMyTurn = true; 
+  const myPlayer = currentPlayer;
 
   const teamBlue = players.filter((p) => p.team === 'blue').sort((a, b) => a.position - b.position);
   const teamRed = players.filter((p) => p.team === 'red').sort((a, b) => a.position - b.position);
@@ -49,44 +52,67 @@ export function BattleScreen({
   const attackAbilities = abilities.filter((a) => a.type === 'attack');
   const defenseAbilities = abilities.filter((a) => a.type === 'defense');
 
-  const renderHealthBar = (player: BattlePlayer, position: 'top' | 'bottom') => {
+  const renderHealthAndManaBars = (player: BattlePlayer) => {
     const hpPercent = (player.currentHp / player.maxHp) * 100;
-    const characterName = CHARACTERS[player.characterClass].name;
+    const mpPercent = (player.currentMana / player.maxMana) * 100;
+    const characterData = CHARACTERS[player.characterClass];
+    const isDead = player.currentHp <= 0;
 
     return (
-      <div className="mb-2">
+      <div key={player.id} className={`mb-4 p-2 border border-slate-700 bg-slate-800/50 ${isDead ? 'opacity-40 grayscale' : ''}`}>
         <div className="flex items-center justify-between mb-1">
-          <div
-            className={`font-black text-sm tracking-wide uppercase ${
-              player.team === 'blue' ? 'text-cyan-400' : 'text-red-400'
-            } italic`}
-          >
-            {characterName}
+          <div className={`font-black text-xs tracking-tighter uppercase ${player.team === 'blue' ? 'text-cyan-400' : 'text-red-400'}`}>
+            {characterData.name} ({player.username})
           </div>
-          <div className="text-white text-xs font-mono">
-            HP {player.currentHp}/{player.maxHp}
+          <div className="flex gap-2 text-[10px] font-mono">
+            <span className="text-white">H:{player.currentHp}</span>
+            <span className="text-cyan-400">M:{player.currentMana}</span>
           </div>
         </div>
-        <div className="h-3 bg-slate-900 border border-slate-700">
+        
+        <div className="h-2 bg-slate-900 mb-1">
           <div
-            className={`h-full transition-all duration-500 ${
-              player.team === 'blue' ? 'bg-gradient-to-r from-cyan-400 to-cyan-500' : 'bg-gradient-to-r from-red-400 to-red-500'
-            }`}
+            className={`h-full transition-all duration-500 ${player.team === 'blue' ? 'bg-cyan-500' : 'bg-red-500'}`}
             style={{ width: `${hpPercent}%` }}
-          ></div>
+          />
         </div>
+        
+        <div className="h-1 bg-slate-900">
+          <div
+            className="h-full bg-cyan-400 transition-all duration-500"
+            style={{ width: `${mpPercent}%` }}
+          />
+        </div>
+
+        {!isDead && (
+          <div className="flex gap-4 mt-1 text-[9px] uppercase font-bold text-slate-500 italic">
+            <span>ATK: {(characterData.abilities.find(a => a.damage)?.damage || 0) + (player.attackPowerBuff || 0)}</span>
+            <span>BUFF: +{player.attackPowerBuff || 0}%</span>
+            {player.isBound && <span className="text-yellow-500">BOUND</span>}
+            {player.isWeakened && <span className="text-purple-500">WEAK</span>}
+            {player.isInvisible && <span className="text-cyan-500">HIDE</span>}
+          </div>
+        )}
       </div>
     );
   };
 
   const renderPlayerPortrait = (player: BattlePlayer) => {
     const isCurrentTurn = player.position === currentTurn;
+    const isTargeted = selectedTargets.includes(player.id);
+    const isEnemy = player.team !== currentPlayer?.team;
+    const isDead = player.currentHp <= 0;
 
     return (
       <div
-        className={`relative transition-all duration-300 ${
+        onClick={() => {
+          if (isEnemy && !isDead) {
+            setSelectedTargets(prev => prev.includes(player.id) ? [] : [player.id]);
+          }
+        }}
+        className={`relative transition-all duration-300 cursor-pointer ${
           isCurrentTurn ? 'scale-110 z-20' : 'scale-100'
-        }`}
+        } ${isTargeted ? 'ring-4 ring-yellow-400' : ''} ${isDead ? 'grayscale opacity-50' : ''}`}
       >
         {isCurrentTurn && (
           <div className="absolute -inset-2 bg-lime-400/20 animate-pulse border-2 border-lime-400"></div>
@@ -105,13 +131,18 @@ export function BattleScreen({
               {player.characterClass === 'ranger' && '🏹'}
               {player.characterClass === 'wizard' && '🔮'}
             </div>
+            {isDead && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+                <div className="text-red-500 font-black text-2xl -rotate-12 border-4 border-red-500 px-2">KO</div>
+              </div>
+            )}
           </div>
         </div>
 
         {isCurrentTurn && (
           <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-lime-400 px-4 py-1 transform -skew-x-12 whitespace-nowrap">
-            <span className="text-black font-black text-xs tracking-wider skew-x-12 inline-block">
-              ACTIVE
+            <span className="text-black font-black text-xs tracking-wider skew-x-12 inline-block font-mono">
+              P{player.position + 1} TURN
             </span>
           </div>
         )}
@@ -129,10 +160,15 @@ export function BattleScreen({
         onClick={() => {
           if (ability.type === 'attack') {
             if (ability.target === 'aoe') {
-              const enemyTeam = myPlayer?.team === 'blue' ? teamRed : teamBlue;
-              onAttack(ability.id, enemyTeam.map((p) => p.id));
-            } else {
-              setSelectedTargets([]);
+              const enemyTeam = currentPlayer?.team === 'blue' ? teamRed : teamBlue;
+              onAttack(ability.id, enemyTeam.filter(p => p.currentHp > 0).map((p) => p.id));
+            } else if (ability.target === 'single') {
+              if (selectedTargets.length === 1) {
+                onAttack(ability.id, selectedTargets);
+                setSelectedTargets([]);
+              } else {
+                alert("Please click an enemy to target, then click the ability again.");
+              }
             }
           } else {
             onDefense(ability.id);
@@ -182,11 +218,11 @@ export function BattleScreen({
 
         <div className="px-8 py-6">
           <div className="grid grid-cols-2 gap-8 mb-6">
-            <div>
-              {teamBlue.map((player) => renderHealthBar(player, 'top'))}
+            <div className="grid grid-cols-2 gap-4">
+              {teamBlue.map(renderHealthAndManaBars)}
             </div>
-            <div>
-              {teamRed.map((player) => renderHealthBar(player, 'top'))}
+            <div className="grid grid-cols-2 gap-4">
+              {teamRed.map(renderHealthAndManaBars)}
             </div>
           </div>
 
@@ -201,17 +237,11 @@ export function BattleScreen({
 
           {lastAction && (
             <div className="max-w-3xl mx-auto mb-6">
-              <div className="bg-gradient-to-r from-red-600/90 to-red-500/90 text-white text-center py-8 border-4 border-red-400">
-                <div className="font-black text-5xl tracking-wider italic mb-4">PLAYER TURN</div>
-                <div className="text-lg">
-                  <span className="font-bold">{lastAction.playerName}</span> used{' '}
-                  <span className="text-cyan-300 font-bold">{lastAction.abilityName}</span>
+              <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white text-center py-4 border-2 border-lime-400">
+                <div className="font-black text-lime-400 text-sm tracking-widest mb-1">ACTION LOG</div>
+                <div className="text-lg font-bold px-4">
+                  {lastAction.description}
                 </div>
-                {lastAction.damage > 0 && (
-                  <div className="text-2xl font-black text-red-300 mt-2">
-                    -{lastAction.damage} DMG
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -244,28 +274,11 @@ export function BattleScreen({
                   <Shield className="w-6 h-6 mx-auto mb-1" />
                   DEFENSE
                 </button>
-
-                <button
-                  onClick={() => setSelectedTab('items')}
-                  className={`flex-1 py-4 font-black text-lg tracking-wider transition-all ${
-                    selectedTab === 'items'
-                      ? 'bg-gradient-to-r from-lime-600 to-lime-500 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Package className="w-6 h-6 mx-auto mb-1" />
-                  ITEMS
-                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {selectedTab === 'attack' && attackAbilities.map(renderAbilityButton)}
                 {selectedTab === 'defense' && defenseAbilities.map(renderAbilityButton)}
-                {selectedTab === 'items' && (
-                  <div className="col-span-2 text-center py-12 text-slate-500">
-                    No items available
-                  </div>
-                )}
               </div>
             </div>
 
