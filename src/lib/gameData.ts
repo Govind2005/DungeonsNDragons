@@ -1,3 +1,8 @@
+import barbarianImg from '../characters/barbarian.png';
+import knightImg from '../characters/knight.png';
+import rangerImg from '../characters/ranger.png';
+import wizardImg from '../characters/wizard.png';
+
 export type CharacterClass = 'barbarian' | 'knight' | 'ranger' | 'wizard';
 
 export interface Ability {
@@ -17,6 +22,7 @@ export interface CharacterData {
   maxHp: number;
   maxMana: number;
   abilities: Ability[];
+  image: string;
 }
 
 export const CHARACTERS: Record<CharacterClass, CharacterData> = {
@@ -25,6 +31,7 @@ export const CHARACTERS: Record<CharacterClass, CharacterData> = {
     name: 'Barbarian',
     maxHp: 210,
     maxMana: 80,
+    image: barbarianImg,
     abilities: [
       {
         id: 'savage_strike',
@@ -78,6 +85,7 @@ export const CHARACTERS: Record<CharacterClass, CharacterData> = {
     name: 'Knight',
     maxHp: 165,
     maxMana: 100,
+    image: knightImg,
     abilities: [
       {
         id: 'valiant_strike',
@@ -133,6 +141,7 @@ export const CHARACTERS: Record<CharacterClass, CharacterData> = {
     name: 'Ranger',
     maxHp: 120,
     maxMana: 110,
+    image: rangerImg,
     abilities: [
       {
         id: 'precise_shot',
@@ -187,6 +196,7 @@ export const CHARACTERS: Record<CharacterClass, CharacterData> = {
     name: 'Wizard',
     maxHp: 90,
     maxMana: 130,
+    image: wizardImg,
     abilities: [
       {
         id: 'arcane_burst',

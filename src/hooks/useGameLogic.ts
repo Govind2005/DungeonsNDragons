@@ -233,7 +233,7 @@ export function useGameLogic(userId: string | undefined) {
   };
 
   const advanceTurn = () => {
-    // Check for win condition
+    // 1. Check for win condition
     const blueTeamDead = matchPlayers.length > 0 && matchPlayers.filter(p => p.team === 'blue').every(p => p.currentHp <= 0);
     const redTeamDead = matchPlayers.length > 0 && matchPlayers.filter(p => p.team === 'red').every(p => p.currentHp <= 0);
 
@@ -243,30 +243,37 @@ export function useGameLogic(userId: string | undefined) {
       return;
     }
 
-    setCurrentMatch(prev => {
-      if (!prev) return null;
-      let nextTurn = (prev.currentTurn + 1) % 4;
-      
-      // Skip dead or bound players
+    // 2. Find next valid player and clear skipped status
+    setMatchPlayers(prevPlayers => {
+      let nextTurn = (currentMatch!.currentTurn + 1) % 4;
+      const newPlayers = [...prevPlayers];
       let attempts = 0;
-      while (matchPlayers.length === 4 && (matchPlayers[nextTurn].currentHp <= 0 || matchPlayers[nextTurn].isBound) && attempts < 4) {
-        if (matchPlayers[nextTurn].isBound) {
-          // Clear bound and skip
-          setMatchPlayers(p => {
-            const np = [...p];
-            np[nextTurn].isBound = false;
-            return np;
-          });
-          setLastAction((prevLog: any) => ({
-            ...prevLog,
-            description: (prevLog?.description || '') + ` ${matchPlayers[nextTurn].username} is BOUND and skips turn!`
-          }));
+      let finalNextTurn = nextTurn;
+
+      while (attempts < 4) {
+        const potentialPlayer = newPlayers[finalNextTurn];
+        
+        if (potentialPlayer.currentHp <= 0) {
+          finalNextTurn = (finalNextTurn + 1) % 4;
+          attempts++;
+          continue;
         }
-        nextTurn = (nextTurn + 1) % 4;
-        attempts++;
+
+        if (potentialPlayer.isBound) {
+          // Clear bound status but they still skip THIS turn
+          newPlayers[finalNextTurn] = { ...potentialPlayer, isBound: false };
+          finalNextTurn = (finalNextTurn + 1) % 4;
+          attempts++;
+          continue;
+        }
+
+        // Found an active player
+        break;
       }
 
-      return { ...prev, currentTurn: nextTurn };
+      // 3. Update match turn state
+      setCurrentMatch(prev => prev ? { ...prev, currentTurn: finalNextTurn } : null);
+      return newPlayers;
     });
   };
 

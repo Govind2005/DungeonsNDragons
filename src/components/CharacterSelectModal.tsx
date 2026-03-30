@@ -47,14 +47,13 @@ export function CharacterSelectModal({ isOpen, onClose, onSelect }: CharacterSel
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
-                    <div className="aspect-[3/4] bg-slate-900 flex items-center justify-center text-7xl relative">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                      <div className="relative z-10">
-                        {characterClass === 'barbarian' && '⚔️'}
-                        {characterClass === 'knight' && '🛡️'}
-                        {characterClass === 'ranger' && '🏹'}
-                        {characterClass === 'wizard' && '🔮'}
-                      </div>
+                    <div className="aspect-[3/4] bg-slate-950 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-700">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10"></div>
+                      <img 
+                        src={character.image} 
+                        alt={character.name}
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+                      />
                     </div>
 
                     <div className="p-4 relative z-10">
