@@ -1,0 +1,18 @@
+services:
+  # 🗄️ The Database (The foundation of The Vault)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: dnd-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: dnd_game_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+# 💾 This ensures your data isn't deleted if you restart your computer
+volumes:
+  postgres_data:
