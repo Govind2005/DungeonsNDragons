@@ -101,8 +101,6 @@ function App() {
         <HomeScreen
           onStartQuest={handleStartQuest}
           onLeaderboards={handleLeaderboards}
-          playerLevel={playerProfile?.level || 1}
-          playerRank="PALADIN ELITE"
         />
       )}
 

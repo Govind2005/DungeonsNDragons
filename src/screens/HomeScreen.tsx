@@ -1,19 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
-import { Swords, Trophy, Zap, Shield, ChevronRight, ShieldCheck, Crosshair, Wand2 } from 'lucide-react';
+import { Swords, Trophy, ChevronRight, ShieldCheck, Crosshair, Wand2 } from 'lucide-react';
 
 interface HomeScreenProps {
   onStartQuest: () => void;
   onLeaderboards: () => void;
-  playerLevel: number;
-  playerRank: string;
 }
 
-export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRank }: HomeScreenProps) {
-  const [mounted, setMounted]         = useState(false);
-  const [glitching, setGlitching]     = useState(false);
-  const [hoverQuest, setHoverQuest]   = useState(false);
-  const [hoverLead, setHoverLead]     = useState(false);
-  const [tick, setTick]               = useState(0);
+export function HomeScreen({ onStartQuest, onLeaderboards }: HomeScreenProps) {
+  const [mounted, setMounted] = useState(false);
+  const [glitching, setGlitching] = useState(false);
+  const [hoverQuest, setHoverQuest] = useState(false);
+  const [hoverLead, setHoverLead] = useState(false);
+  const [tick, setTick] = useState(0);
   const glitchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -42,7 +40,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
     };
   }, []);
 
-  const glitchX  = glitching ? (Math.random() - 0.5) * 8 : 0;
+  const glitchX = glitching ? (Math.random() - 0.5) * 8 : 0;
   const glitchX2 = glitching ? (Math.random() - 0.5) * 6 : 0;
 
   return (
@@ -117,8 +115,8 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
 
       {/* â”€â”€ FLOATING RUNE DOTS â”€â”€ */}
       {Array.from({ length: 30 }).map((_, i) => {
-        const x    = (i * 37.7) % 100;
-        const y    = (i * 23.1) % 100;
+        const x = (i * 37.7) % 100;
+        const y = (i * 23.1) % 100;
         const size = 1 + (i % 3);
         const phase = (tick * 0.02 + i * 0.7) % (Math.PI * 2);
         const opacity = 0.08 + Math.sin(phase) * 0.06;
@@ -131,45 +129,8 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
         );
       })}
 
-      {/* â”€â”€ PLAYER BADGE â”€â”€ */}
-      <div
-        className={`absolute top-6 right-6 z-20 transition-all duration-1000 ${mounted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}
-        style={{ transitionDelay: '800ms' }}
-      >
-        <div className="relative">
-          <div className="absolute -inset-px rounded-sm" style={{ background: 'linear-gradient(135deg, rgba(163,230,53,0.4), transparent)' }} />
-          <div className="relative flex items-center gap-3 bg-black/60 backdrop-blur-xl border border-lime-400/20 px-4 py-2.5 rounded-sm">
-            <div className="relative w-9 h-9 bg-slate-800 border border-lime-400/40 rounded-sm flex items-center justify-center">
-              <Shield className="w-4 h-4 text-lime-400" />
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-lime-400 rounded-full flex items-center justify-center">
-                <span className="text-black font-black" style={{ fontSize: '8px' }}>{playerLevel}</span>
-              </div>
-            </div>
-            <div>
-              <div className="text-lime-400 font-black tracking-widest" style={{ fontSize: '10px' }}>LEVEL {playerLevel}</div>
-              <div className="text-slate-400 tracking-wider" style={{ fontSize: '9px' }}>{playerRank}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* â”€â”€ MAIN CONTENT â”€â”€ */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 py-16">
-
-        {/* Season pill */}
-        <div
-          className={`transition-all duration-700 mb-8 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
-          style={{ transitionDelay: '100ms' }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-px w-16" style={{ background: 'linear-gradient(to right, transparent, rgba(163,230,53,0.5))' }} />
-            <div className="flex items-center gap-2 border border-red-500/50 bg-red-600/10 px-4 py-1.5 rounded-sm">
-              <Zap className="w-3 h-3 text-red-400" />
-              <span className="text-red-400 font-black tracking-widest" style={{ fontSize: '10px' }}>SEASON 01 â€” KINETIC HERO</span>
-            </div>
-            <div className="h-px w-16" style={{ background: 'linear-gradient(to left, transparent, rgba(163,230,53,0.5))' }} />
-          </div>
-        </div>
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 py-6">
 
         {/* â”€â”€ MEGA TITLE â”€â”€ */}
         <div
@@ -179,7 +140,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
           {/* Background title blur glow */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" aria-hidden>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1,
@@ -190,7 +151,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
               userSelect: 'none',
             }}>DUNGEONS</div>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1,
@@ -208,7 +169,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
             transition: glitching ? 'none' : 'transform 0.15s',
           }}>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1.05,
@@ -217,7 +178,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
               userSelect: 'none',
             }}>DUNGEONS</div>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1.05,
@@ -233,7 +194,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
             transition: glitching ? 'none' : 'transform 0.15s',
           }}>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1.05,
@@ -242,7 +203,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
               userSelect: 'none',
             }}>DUNGEONS</div>
             <div style={{
-              fontSize: 'clamp(4rem, 14vw, 11rem)',
+              fontSize: 'clamp(3rem, 10vw, 6.5rem)',
               fontWeight: 900,
               fontStyle: 'italic',
               lineHeight: 1.05,
@@ -254,7 +215,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
 
           {/* Main title */}
           <div style={{
-            fontSize: 'clamp(4rem, 14vw, 11rem)',
+            fontSize: 'clamp(3rem, 10vw, 6.5rem)',
             fontWeight: 900,
             fontStyle: 'italic',
             lineHeight: 1.05,
@@ -269,7 +230,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
             DUNGEONS
           </div>
           <div style={{
-            fontSize: 'clamp(4rem, 14vw, 11rem)',
+            fontSize: 'clamp(3rem, 10vw, 6.5rem)',
             fontWeight: 900,
             fontStyle: 'italic',
             lineHeight: 1.05,
@@ -295,18 +256,18 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
 
         {/* â”€â”€ CLASS ROSTER STRIP â”€â”€ */}
         <div
-          className={`flex items-center gap-3 mt-6 mb-10 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+          className={`flex items-center gap-3 mt-4 mb-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
           style={{ transitionDelay: '400ms' }}
         >
           {[
-            { Icon: Swords,      name: 'BARBARIAN', color: '#fb923c', glow: 'rgba(251,146,60,0.4)'  },
-            { Icon: ShieldCheck, name: 'KNIGHT',    color: '#60a5fa', glow: 'rgba(96,165,250,0.4)'  },
-            { Icon: Crosshair,   name: 'RANGER',    color: '#4ade80', glow: 'rgba(74,222,128,0.4)'  },
-            { Icon: Wand2,       name: 'WIZARD',    color: '#c084fc', glow: 'rgba(192,132,252,0.4)' },
+            { Icon: Swords, name: 'BARBARIAN', color: '#fb923c', glow: 'rgba(251,146,60,0.4)' },
+            { Icon: ShieldCheck, name: 'KNIGHT', color: '#60a5fa', glow: 'rgba(96,165,250,0.4)' },
+            { Icon: Crosshair, name: 'RANGER', color: '#4ade80', glow: 'rgba(74,222,128,0.4)' },
+            { Icon: Wand2, name: 'WIZARD', color: '#c084fc', glow: 'rgba(192,132,252,0.4)' },
           ].map(({ Icon, name, color, glow }, i) => (
             <div
               key={i}
-              className="group relative flex flex-col items-center gap-1.5 px-5 py-3 border border-slate-800 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-300 hover:scale-105 cursor-default rounded-sm"
+              className="group relative flex flex-col items-center gap-1.5 px-4 py-2 border border-slate-800 bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-300 hover:scale-105 cursor-default rounded-sm"
               style={{
                 transitionDelay: `${400 + i * 60}ms`,
                 boxShadow: `0 0 0 0 ${glow}`,
@@ -322,8 +283,8 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
 
         {/* â”€â”€ BUTTONS â”€â”€ */}
         <div
-          className={`flex flex-col gap-5 w-full transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          style={{ maxWidth: '520px', transitionDelay: '550ms' }}
+          className={`flex flex-col gap-4 w-full transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          style={{ maxWidth: '480px', transitionDelay: '550ms' }}
         >
           {/* START QUEST */}
           <button
@@ -356,15 +317,15 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
             {/* Top highlight */}
             <div className="absolute top-0 left-4 right-4 h-px bg-white/30 rounded-full" />
             {/* Content */}
-            <div className="relative flex items-center justify-center gap-4 px-10 py-5 border-2 border-black rounded-sm">
-              <div className="w-10 h-10 bg-black/20 border border-black/30 rounded-sm flex items-center justify-center">
+            <div className="relative flex items-center justify-center gap-4 px-8 py-3.5 border-2 border-black rounded-sm">
+              <div className="w-9 h-9 bg-black/20 border border-black/30 rounded-sm flex items-center justify-center">
                 <Swords className="w-5 h-5 text-black" />
               </div>
-              <span className="text-black font-black tracking-widest" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
+              <span className="text-black font-black tracking-widest" style={{ fontSize: 'clamp(0.9rem, 2vw, 1.25rem)' }}>
                 START QUEST
               </span>
               <ChevronRight
-                className="w-6 h-6 text-black/70 transition-transform duration-300"
+                className="w-5 h-5 text-black/70 transition-transform duration-300"
                 style={{ transform: hoverQuest ? 'translateX(4px)' : 'none' }}
               />
             </div>
@@ -396,15 +357,15 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
               }}
             />
             <div className="absolute top-0 left-4 right-4 h-px bg-white/30 rounded-full" />
-            <div className="relative flex items-center justify-center gap-4 px-10 py-5 border-2 border-black rounded-sm">
-              <div className="w-10 h-10 bg-black/20 border border-black/30 rounded-sm flex items-center justify-center">
+            <div className="relative flex items-center justify-center gap-4 px-8 py-3.5 border-2 border-black rounded-sm">
+              <div className="w-9 h-9 bg-black/20 border border-black/30 rounded-sm flex items-center justify-center">
                 <Trophy className="w-5 h-5 text-black" />
               </div>
-              <span className="text-black font-black tracking-widest" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)' }}>
+              <span className="text-black font-black tracking-widest" style={{ fontSize: 'clamp(0.9rem, 2vw, 1.25rem)' }}>
                 LEADERBOARDS
               </span>
               <ChevronRight
-                className="w-6 h-6 text-black/70 transition-transform duration-300"
+                className="w-5 h-5 text-black/70 transition-transform duration-300"
                 style={{ transform: hoverLead ? 'translateX(4px)' : 'none' }}
               />
             </div>
@@ -413,21 +374,21 @@ export function HomeScreen({ onStartQuest, onLeaderboards, playerLevel, playerRa
 
         {/* â”€â”€ STATS ROW â”€â”€ */}
         <div
-          className={`flex items-center gap-0 mt-10 border border-slate-800 rounded-sm overflow-hidden transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+          className={`flex items-center gap-0 mt-6 border border-slate-800 rounded-sm overflow-hidden transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
           style={{ transitionDelay: '700ms' }}
         >
           {[
-            { value: '4',    label: 'PLAYERS' },
-            { value: '2v2',  label: 'FORMAT'  },
-            { value: '4',    label: 'CLASSES' },
-            { value: 'S01',  label: 'SEASON'  },
+            { value: '4', label: 'PLAYERS' },
+            { value: '2v2', label: 'FORMAT' },
+            { value: '4', label: 'CLASSES' },
+            { value: 'S01', label: 'SEASON' },
           ].map((stat, i) => (
             <div key={i} className="flex items-center">
-              <div className="flex flex-col items-center px-7 py-3 bg-slate-900/40 hover:bg-slate-900/80 transition-colors">
-                <span className="text-lime-400 font-black text-lg tracking-wider">{stat.value}</span>
-                <span className="text-slate-600 tracking-widest mt-0.5" style={{ fontSize: '9px' }}>{stat.label}</span>
+              <div className="flex flex-col items-center px-6 py-2 bg-slate-900/40 hover:bg-slate-900/80 transition-colors">
+                <span className="text-lime-400 font-black text-base tracking-wider">{stat.value}</span>
+                <span className="text-slate-600 tracking-widest mt-0.5" style={{ fontSize: '8px' }}>{stat.label}</span>
               </div>
-              {i < 3 && <div className="w-px h-10 bg-slate-800" />}
+              {i < 3 && <div className="w-px h-8 bg-slate-800" />}
             </div>
           ))}
         </div>
