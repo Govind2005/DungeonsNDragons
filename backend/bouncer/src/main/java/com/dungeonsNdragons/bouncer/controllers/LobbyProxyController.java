@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
@@ -71,6 +72,19 @@ public class LobbyProxyController {
                 "username", jwtService.extractUsername(token),
                 "characterClass", payload.get("characterClass"));
         return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
+    }
+
+    @PostMapping("/rooms/start")
+    public ResponseEntity<Object> startMatch(
+            @RequestParam(name="roomCode") String roomCode,
+            @RequestParam(name="characters") String characters,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = jwtService.extractFromHeader(authHeader);
+        String playerId = jwtService.extractPlayerId(token).toString();
+        restTemplate.postForEntity(
+                lobbyUrl + "/api/lobby/rooms/start?roomCode=" + roomCode + "&playerId=" + playerId + "&characters=" + characters,
+                null, Void.class);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/rooms/{roomCode}/players/{playerId}")
