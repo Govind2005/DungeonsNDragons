@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dungeonsNdragons.lobbyManager.services.LobbyService;
@@ -25,6 +26,12 @@ class LobbyController {
     @PostMapping("/rooms")
     public ResponseEntity<Object> createRoom(@RequestBody CreateRoomRequest req) {
         return ResponseEntity.ok(lobbyService.createRoom(req.getPlayerId(), req.getUsername()));
+    }
+
+    @PostMapping("/rooms/start")
+    public ResponseEntity<Object> startMatch(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId, @RequestParam(name="characters") String characters) {
+        lobbyService.playerReady(roomCode, playerId, characters);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/rooms/{roomCode}/join")

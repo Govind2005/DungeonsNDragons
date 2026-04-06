@@ -1,6 +1,6 @@
 package com.dungeonsNdragons.bouncer.security;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,38 +13,38 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-private final JwtService jwtService;
+    private final JwtService jwtService;
 
-@Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        .cors(c -> c.configurationSource(corsConfig()))
-        .csrf(csrf -> csrf.disable())
-        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/**").permitAll()
-            .requestMatchers("/ws/**").permitAll()
-            .requestMatchers("/actuator/health").permitAll()
-            .anyRequest().authenticated()
-        )
-        .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
-    return http.build();
-}
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(c -> c.configurationSource(corsConfig()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
 
-@Bean
-public CorsConfigurationSource corsConfig() {
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOriginPatterns(List.of("*"));
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("*"));
-    config.setAllowCredentials(true);
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", config);
-    return source;
-}
+    @Bean
+    public CorsConfigurationSource corsConfig() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
 }

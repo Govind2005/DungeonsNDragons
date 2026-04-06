@@ -1,8 +1,12 @@
 package com.dungeonsNdragons.lobbyManager.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
@@ -11,8 +15,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import java.time.Duration;
-import java.util.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +42,7 @@ public class LobbyService {
     public Room createRoom(String creatorPlayerId, String creatorUsername) {
         String roomCode = generateRoomCode();
         Room room = Room.builder()
-                .roomCode(roomCode).status(Room.RoomStatus.WAITING).players(new ArrayList<>()).build();
+                .roomCode(roomCode).playersReady(0).status(Room.RoomStatus.WAITING).players(new ArrayList<>()).build();
         room.getPlayers().add(Room.RoomPlayer.builder()
                 .playerId(creatorPlayerId).username(creatorUsername).turnOrder(1).build());
         saveRoom(room);
@@ -57,14 +64,14 @@ public class LobbyService {
 
         int turnOrder = room.getPlayers().size() + 1;
         room.getPlayers().add(Room.RoomPlayer.builder()
-                .playerId(playerId).username(username).characterClass(characterClass)
+                .playerId(playerId).username(username)
                 .turnOrder(turnOrder).team(turnOrder <= 2 ? 1 : 2).build());
 
         if (room.getPlayers().size() == MAX_PLAYERS) {
             room.setStatus(Room.RoomStatus.STARTING);
             saveRoom(room);
             redis.opsForSet().remove(AVAILABLE_ROOMS_KEY, roomCode);
-            initializeMatch(room);
+            // initializeMatch(room);  removed this because now the frontend will call api for starting the match giving characters and then we call this method
         } else {
             saveRoom(room);
         }
@@ -102,7 +109,29 @@ public class LobbyService {
             broadcastRoomUpdate(room);
         }
     }
+    public void playerReady(String roomCode, String playerId, String characters) {
+        Room room = getRoom(roomCode);
+        if (room == null)
+            throw new IllegalArgumentException("Room not found: " + roomCode);
+        if (room.getStatus() != Room.RoomStatus.STARTING)
+            throw new IllegalStateException("Room is not ready to start");
+        if (room.getPlayers().stream().noneMatch(p -> p.getPlayerId().equals(playerId)))
+            throw new IllegalStateException("Not a member of this room");
 
+        int readyCount = room.getPlayersReady() + 1;
+        room.getPlayers().forEach(p -> {
+            if(p.getPlayerId().equals(playerId)) {
+                p.setCharacterClass(characters);
+            }
+        });
+        room.setPlayersReady(readyCount);
+        if(readyCount == MAX_PLAYERS){
+            initializeMatch(room);
+        } else {
+            saveRoom(room);
+        }
+    }
+    
     private void initializeMatch(Room room) {
         try {
             List<Map<String, Object>> players = room.getPlayers().stream()

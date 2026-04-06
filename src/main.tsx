@@ -7,6 +7,11 @@ import './index.css';
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+console.log("=== GOOGLE AUTH DEBUG ===");
+console.log("Configured Client ID:", clientId);
+console.log("Current Window Origin:", window.location.origin);
+console.log("=========================");
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <GoogleOAuthProvider clientId={clientId}>

@@ -99,15 +99,20 @@ export function LoginScreen() {
           <div className="w-full flex justify-center py-4 rounded-sm" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(163,230,53,0.2)' }}>
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
+                console.log("=== GOOGLE LOGIN SUCCESS CALLBACK ===");
+                console.log("Credential Response received:", !!credentialResponse.credential);
                 if (credentialResponse.credential) {
                   try {
                     await signIn(credentialResponse.credential);
                   } catch (e: any) {
+                    console.error("Sign-in process threw an error:", e);
                     setLoginError(e.message || 'Failed to sign in. System rejected access.');
                   }
                 }
               }}
               onError={() => {
+                console.error("=== GOOGLE LOGIN onError CALLBACK TRIGGERED ===");
+                console.error("This means Google's internal API failed before returning a token.");
                 setLoginError('Google communication protocol failed.');
               }}
               theme="filled_black"

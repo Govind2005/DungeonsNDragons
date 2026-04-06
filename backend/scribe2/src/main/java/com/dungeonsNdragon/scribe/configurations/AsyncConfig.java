@@ -22,8 +22,7 @@ class AsyncConfig {
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("scribe-async-");
-        executor.setRejectedExecutionHandler(
-                (r, exec) -> System.err.println("Scribe async queue full — dropping task"));
+        executor.setRejectedExecutionHandler((r, exec) -> System.err.println("Scribe async queue full — dropping task"));
         executor.initialize();
         return executor;
     }

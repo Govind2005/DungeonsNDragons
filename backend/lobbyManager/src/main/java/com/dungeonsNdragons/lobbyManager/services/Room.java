@@ -12,11 +12,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-class Room implements Serializable {
+public class Room implements Serializable {
     private String roomCode;
     private RoomStatus status;
     private String matchId;
     private List<RoomPlayer> players;
+    private int playersReady;
 
     public enum RoomStatus {
         WAITING, STARTING, IN_GAME, FINISHED

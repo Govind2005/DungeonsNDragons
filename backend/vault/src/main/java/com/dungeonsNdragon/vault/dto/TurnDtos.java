@@ -3,12 +3,16 @@ package com.dungeonsNdragon.vault.dto;
 import java.util.List;
 import java.util.UUID;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 public class TurnDtos {
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ApplyTurnRequest {
         private UUID matchId;
         private UUID actorPlayerId;
@@ -23,6 +27,8 @@ public class TurnDtos {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class EffectApplication {
         private String type;
         private UUID targetPlayerId;

@@ -2,12 +2,16 @@ package com.dungeonsNdragon.vault.dto;
 
 import java.util.UUID;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 public class PlayerDtos {
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CreatePlayerRequest {
         private String googleId;
         private String username;
@@ -16,6 +20,8 @@ public class PlayerDtos {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PlayerResponse {
         private UUID id;
         private String googleId;
@@ -29,6 +35,8 @@ public class PlayerDtos {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class UpdateStatsRequest {
         private UUID playerId;
         private boolean won;
