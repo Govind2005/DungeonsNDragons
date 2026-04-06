@@ -1,26 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { GameProvider, useGame } from './contexts/GameContext';
 import { useGameLogic } from './hooks/useGameLogic';
 // import { supabase } from './lib/supabase';
 
 import { HomeScreen } from './screens/HomeScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
+import { LobbyJoinScreen } from './screens/LobbyJoinScreen';
+import { LobbyWaitingScreen } from './screens/LobbyWaitingScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { CharacterSelectModal } from './components/CharacterSelectModal';
 
-function App() {
-  const { user, loading } = useAuth();
+function AppContent() {
+  const { user, loading, token } = useAuth();
+  const { currentScreen, setCurrentScreen } = useGameLogic(user?.id);
+  const { matchId, matchPlayers, currentRoom } = useGame();
   const [showCharacterSelect, setShowCharacterSelect] = useState(false);
   const [selectingForPlayer, setSelectingForPlayer] = useState<string | null>(null);
 
   const {
-    currentScreen,
-    setCurrentScreen,
     currentMatch,
-    matchPlayers,
+    matchPlayers: gameMatchPlayers,
     lastAction,
     createMatch,
     selectCharacterForPlayer,
@@ -66,7 +69,8 @@ function App() {
   };
 
   const handleStartQuest = async () => {
-    await createMatch();
+    // Navigate to lobby join/create screen
+    setCurrentScreen('lobby-join');
   };
 
   const handleLeaderboards = async () => {
@@ -74,6 +78,9 @@ function App() {
     setCurrentScreen('leaderboard');
   };
 
+  const handleNavigateTo = (screen: string) => {
+    setCurrentScreen(screen);
+  };
 
   if (loading) {
     return (
@@ -98,9 +105,17 @@ function App() {
         />
       )}
 
+      {currentScreen === 'lobby-join' && (
+        <LobbyJoinScreen onNavigateTo={handleNavigateTo} />
+      )}
+
+      {currentScreen === 'lobby-waiting' && (
+        <LobbyWaitingScreen onNavigateTo={handleNavigateTo} />
+      )}
+
       {currentScreen === 'lobby' && currentMatch && (
         <LobbyScreen
-          players={matchPlayers.map((p: any) => ({
+          players={gameMatchPlayers.map((p: any) => ({
             id: p.id,
             username: p.username,
             team: p.team,
@@ -119,9 +134,9 @@ function App() {
         />
       )}
 
-      {currentScreen === 'battle' && currentMatch && matchPlayers.length > 0 && (
+      {currentScreen === 'battle' && currentMatch && gameMatchPlayers.length > 0 && (
         <BattleScreen
-          players={matchPlayers.map((p: any) => ({
+          players={gameMatchPlayers.map((p: any) => ({
             id: p.id,
             username: p.username,
             team: p.team,
@@ -207,6 +222,16 @@ function App() {
         }}
       />
     </>
+  );
+}
+
+function App() {
+  const { token } = useAuth();
+
+  return (
+    <GameProvider token={token}>
+      <AppContent />
+    </GameProvider>
   );
 }
 

@@ -248,3 +248,16 @@ export const CHARACTERS: Record<CharacterClass, CharacterData> = {
     ],
   },
 };
+
+export interface CharacterClass_ {
+  id: CharacterClass;
+  name: string;
+  emoji: string;
+}
+
+export const CHARACTER_CLASSES: CharacterClass_[] = [
+  { id: 'barbarian', name: 'Barbarian', emoji: '⚔️' },
+  { id: 'knight', name: 'Knight', emoji: '🛡️' },
+  { id: 'ranger', name: 'Ranger', emoji: '🏹' },
+  { id: 'wizard', name: 'Wizard', emoji: '🔮' },
+];

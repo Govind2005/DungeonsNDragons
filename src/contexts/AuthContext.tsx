@@ -10,6 +10,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   loading: boolean;
   signIn: (credential: string) => Promise<void>;
   signUp: () => Promise<void>;
@@ -36,6 +37,7 @@ const PREDEFINED_PROFILES = PREDEFINED_USERS.map(u => ({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,10 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
+      setToken(savedToken);
     } else {
       // Clear out any old mock user data from previous implementation
       localStorage.removeItem('rpg_user');
+      localStorage.removeItem('rpg_token');
       setUser(null);
+      setToken(null);
     }
     setLoading(false);
   }, []);
@@ -88,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(loggedInUser);
       localStorage.setItem('rpg_user', JSON.stringify(loggedInUser));
       localStorage.setItem('rpg_token', data.token);
+      setToken(data.token);
 
       // Ensure a profile exists for this new user so the game doesn't crash when loading leaderboards/profiles
       const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
@@ -118,12 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('rpg_user');
     localStorage.removeItem('rpg_token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
