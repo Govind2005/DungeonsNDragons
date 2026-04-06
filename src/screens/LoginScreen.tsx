@@ -113,6 +113,7 @@ export function LoginScreen() {
               theme="filled_black"
               shape="rectangular"
               text="signin_with"
+              use_fedcm_for_prompt={true}
               // width="100%"
             />
           </div>
