@@ -4,7 +4,7 @@ import { useGameLogic } from './hooks/useGameLogic';
 // import { supabase } from './lib/supabase';
 
 import { HomeScreen } from './screens/HomeScreen';
-// import { LoginScreen } from './screens/LoginScreen';
+import { LoginScreen } from './screens/LoginScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -86,13 +86,7 @@ function App() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-lime-400 font-black animate-pulse">
-           INITIALIZING...
-        </div>
-      </div>
-    );
+    return <LoginScreen />;
   }
 
   return (
