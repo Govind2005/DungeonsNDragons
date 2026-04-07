@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Wifi, LogOut, Zap, Copy, Check } from 'lucide-react';
 import { useGame } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
-import { CharacterClass, CHARACTER_CLASSES } from '../lib/gameData';
 
 export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: string) => void }) {
   const { createRoom, joinRoom, currentRoom, connectionError, isConnected } = useGame();
   const { user, token } = useAuth();
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
-  const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +22,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
     setError(null);
 
     try {
-      const code = await createRoom(token);
+      await createRoom(token);
       setMode('choose');
       onNavigateTo('lobby-waiting');
     } catch (err) {
@@ -36,8 +34,8 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
   };
 
   const handleJoinRoom = async () => {
-    if (!token || !user || !selectedClass || !joinCode.trim()) {
-      setError('Please fill in all fields');
+    if (!token || !user || !joinCode.trim()) {
+      setError('Please enter a party code');
       return;
     }
 
@@ -45,7 +43,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
     setError(null);
 
     try {
-      await joinRoom(joinCode.toUpperCase(), user.id, user.user_metadata?.username || 'Player', selectedClass, token);
+      await joinRoom(joinCode.toUpperCase(), user.id, user.user_metadata?.username || 'Player', null, token);
       setMode('choose');
       onNavigateTo('lobby-waiting');
     } catch (err) {
@@ -174,7 +172,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
             <div className="max-w-md w-full space-y-8">
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-black tracking-widest text-cyan-400">CREATE PARTY</h2>
-                <p className="text-slate-400 text-xs tracking-widest">Select your character class to create a new dungeon party</p>
+                <p className="text-slate-400 text-xs tracking-widest">Create a new dungeon party and select your character in the lobby</p>
               </div>
 
               {error && (
@@ -182,27 +180,6 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
                   {error}
                 </div>
               )}
-
-              {/* Class selection */}
-              <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4">Select your class</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {CHARACTER_CLASSES.map((char) => (
-                    <button
-                      key={char.id}
-                      onClick={() => setSelectedClass(char.id)}
-                      className={`relative overflow-hidden p-4 rounded-sm border-2 transition-all text-center ${
-                        selectedClass === char.id
-                          ? 'border-lime-400 bg-lime-500/20 shadow-[0_0_20px_rgba(132,204,22,0.3)]'
-                          : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'
-                      }`}
-                    >
-                      <div className="text-3xl mb-2">{char.emoji}</div>
-                      <div className="font-bold text-xs text-white uppercase tracking-wide">{char.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Buttons */}
               <div className="flex gap-3 pt-4">
@@ -215,7 +192,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
                 </button>
                 <button
                   onClick={handleCreateRoom}
-                  disabled={!selectedClass || loading}
+                  disabled={loading}
                   className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 text-black disabled:text-slate-500 rounded-sm transition-all text-xs font-bold tracking-widest disabled:cursor-not-allowed"
                 >
                   {loading ? 'CREATING...' : 'CREATE'}
@@ -228,7 +205,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
             <div className="max-w-md w-full space-y-8">
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-black tracking-widest text-lime-400">JOIN PARTY</h2>
-                <p className="text-slate-400 text-xs tracking-widest">Enter the party code and choose your character class</p>
+                <p className="text-slate-400 text-xs tracking-widest">Enter the party code and select your character in the lobby</p>
               </div>
 
               {error && (
@@ -250,27 +227,6 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
                 />
               </div>
 
-              {/* Class selection */}
-              <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4">Select your class</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {CHARACTER_CLASSES.map((char) => (
-                    <button
-                      key={char.id}
-                      onClick={() => setSelectedClass(char.id)}
-                      className={`relative overflow-hidden p-4 rounded-sm border-2 transition-all text-center ${
-                        selectedClass === char.id
-                          ? 'border-lime-400 bg-lime-500/20 shadow-[0_0_20px_rgba(132,204,22,0.3)]'
-                          : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'
-                      }`}
-                    >
-                      <div className="text-3xl mb-2">{char.emoji}</div>
-                      <div className="font-bold text-xs text-white uppercase tracking-wide">{char.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Buttons */}
               <div className="flex gap-3 pt-4">
                 <button
@@ -282,7 +238,7 @@ export function LobbyJoinScreen({ onNavigateTo }: { onNavigateTo: (screen: strin
                 </button>
                 <button
                   onClick={handleJoinRoom}
-                  disabled={!selectedClass || !joinCode || loading}
+                  disabled={!joinCode || loading}
                   className="flex-1 px-4 py-3 bg-lime-400 hover:bg-lime-300 disabled:bg-slate-700 text-black disabled:text-slate-500 rounded-sm transition-all text-xs font-bold tracking-widest disabled:cursor-not-allowed"
                 >
                   {loading ? 'JOINING...' : 'JOIN'}
