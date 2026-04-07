@@ -87,11 +87,11 @@ public class LobbyProxyController {
         return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("/rooms/{roomCode}/players/{playerId}")
+    @DeleteMapping("/rooms/{roomCode}/leave}")
     public ResponseEntity<Void> leaveRoom(
             @PathVariable String roomCode,
-            @PathVariable String playerId) {
-        restTemplate.delete(lobbyUrl + "/api/lobby/rooms/" + roomCode + "/players/" + playerId);
+            @RequestParam(name="playerId") String playerId) {
+        restTemplate.delete(lobbyUrl + "/api/lobby/rooms/" + roomCode + "/leave?playerId=" + playerId);
         return ResponseEntity.ok().build();
     }
 

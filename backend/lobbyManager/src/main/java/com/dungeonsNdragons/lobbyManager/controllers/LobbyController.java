@@ -55,9 +55,9 @@ class LobbyController {
         return ResponseEntity.ok(room);
     }
 
-    @DeleteMapping("/rooms/{roomCode}/players/{playerId}")
+    @DeleteMapping("/rooms/{roomCode}/leave}")
     public ResponseEntity<Void> leaveRoom(@PathVariable String roomCode,
-            @PathVariable String playerId) {
+            @RequestParam(name="playerId") String playerId) {
         lobbyService.leaveRoom(roomCode, playerId);
         return ResponseEntity.ok().build();
     }
