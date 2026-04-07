@@ -64,14 +64,13 @@ const STAT_BAR = ({
 );
 
 export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: string) => void }) {
-  const { currentRoom, leaveRoom, selectCharacter, startRoom } = useGame();
+  const { currentRoom, leaveRoom, selectCharacter } = useGame();
   const { user, token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCharacterModal, setShowCharacterModal] = useState(false);
-  const [selectingPlayerId, setSelectingPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -98,45 +97,23 @@ export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: st
     onNavigateTo('lobby-join');
   };
 
-  const handleSelectCharacter = (playerId: string) => {
-    setSelectingPlayerId(playerId);
-    setShowCharacterModal(true);
+  const handleSelectCharacter = () => {
+    const currentPlayer = currentRoom.players.find((p) => p.playerId === user?.id);
+    if (!currentPlayer?.characterClass) {
+      setShowCharacterModal(true);
+    }
   };
 
   const handleCharacterSelect = async (characterClass: CharacterClass) => {
-    if (!selectingPlayerId || !token) return;
+    if (!token) return;
 
     setError(null);
+    setLoading(true);
     try {
-      await selectCharacter(selectingPlayerId, characterClass, token);
+      await selectCharacter(characterClass, token);
       setShowCharacterModal(false);
-      setSelectingPlayerId(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to select character';
-      setError(message);
-    }
-  };
-
-  const handleStartGame = async () => {
-    if (!token) {
-      setError('No authentication token available');
-      return;
-    }
-
-    // Check if all players have selected characters
-    if (!currentRoom.players.every((p) => p.characterClass)) {
-      setError('All players must select a character before starting');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await startRoom(token);
-      // Navigation will happen through context update
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to start game';
       setError(message);
     } finally {
       setLoading(false);
@@ -199,7 +176,7 @@ export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: st
 
         {/* Card */}
         <div
-          onClick={() => isCurrentPlayer && handleSelectCharacter(player.playerId)}
+          onClick={() => isCurrentPlayer && handleSelectCharacter()}
           className={`
             relative overflow-hidden ${isCurrentPlayer && !charData ? 'cursor-pointer' : ''} h-80 border-2 rounded-sm transition-all duration-300
             ${classTheme
@@ -415,18 +392,6 @@ export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: st
                   <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
                   LEAVE LOBBY
                 </button>
-
-                <button
-                  onClick={handleStartGame}
-                  disabled={!allPlayersReady || loading}
-                  className={`flex-1 px-6 py-3 rounded-sm text-xs font-bold tracking-widest transition-all ${
-                    allPlayersReady
-                      ? 'bg-lime-500 hover:bg-lime-400 text-black'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  {loading ? 'STARTING...' : 'START GAME'}
-                </button>
               </div>
             </div>
           </div>
@@ -435,7 +400,7 @@ export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: st
         {/* Footer */}
         <footer className="px-8 py-5 border-t border-slate-800/80 bg-black/40 backdrop-blur-md flex items-center justify-between">
           <div className="text-slate-600 text-xs font-bold tracking-widest">
-            {allPlayersReady ? 'ALL PLAYERS READY' : 'WAITING FOR PLAYERS TO SELECT CLASS'}
+            {allPlayersReady ? 'ALL PLAYERS READY - STARTING MATCH...' : 'WAITING FOR PLAYERS TO SELECT CLASS'}
           </div>
           <div className="text-slate-500 text-xs">Room: {currentRoom.roomCode}</div>
         </footer>
@@ -471,10 +436,7 @@ export function LobbyWaitingScreen({ onNavigateTo }: { onNavigateTo: (screen: st
             </div>
 
             <button
-              onClick={() => {
-                setShowCharacterModal(false);
-                setSelectingPlayerId(null);
-              }}
+              onClick={() => setShowCharacterModal(false)}
               className="w-full px-4 py-2 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 rounded-sm transition-all text-xs font-bold tracking-widest"
             >
               CANCEL

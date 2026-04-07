@@ -37,8 +37,7 @@ interface GameContextType {
   initializeWebSocket: (token: string) => Promise<void>;
   createRoom: (token: string) => Promise<string>;
   joinRoom: (roomCode: string, playerId: string, username: string, characterClass: CharacterClass | null, token: string) => Promise<void>;
-  selectCharacter: (playerId: string, characterClass: CharacterClass, token: string) => Promise<void>;
-  startRoom: (token: string) => Promise<void>;
+  selectCharacter: (characterClass: CharacterClass, token: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
 
   // Match state
@@ -78,7 +77,13 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const handleMatchStart = useCallback((event: MatchStartEvent) => {
     console.log('Match started:', event);
     setMatchId(event.matchId);
-    setMatchPlayers(event.players);
+    setMatchPlayers(event.players.map((p: any) => ({
+      playerId: p.playerId,
+      username: p.username,
+      team: p.team,
+      turnOrder: p.turnOrder || 0,
+      characterClass: p.characterClass,
+    })));
     // Navigation happens at screen level
   }, []);
 
@@ -172,72 +177,34 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   );
 
   const selectCharacter = useCallback(
-    async (playerId: string, characterClass: CharacterClass, authToken: string) => {
+    async (characterClass: CharacterClass, authToken: string) => {
       try {
-        const response = await fetch(`http://localhost:8080/api/room/${currentRoom?.roomCode}/player/${playerId}/character`, {
+        if (!currentRoom) {
+          throw new Error('No room loaded');
+        }
+
+        const params = new URLSearchParams({
+          roomCode: currentRoom.roomCode,
+          characters: characterClass.toUpperCase(),
+        });
+
+        const response = await fetch(`http://localhost:8080/api/lobby/rooms/ready?${params.toString()}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            characterClass: characterClass.toUpperCase(),
-          }),
         });
 
         if (!response.ok) {
           throw new Error(`Failed to select character: ${response.statusText}`);
         }
-
-        const room = (await response.json()) as RoomData;
-        setCurrentRoom(room);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to select character';
         setConnectionError(message);
         throw error;
       }
     },
-    [currentRoom?.roomCode]
-  );
-
-  const startRoom = useCallback(
-    async (authToken: string) => {
-      try {
-        if (!currentRoom) {
-          throw new Error('No room loaded');
-        }
-
-        const characters = currentRoom.players.map((p) => ({
-          playerId: p.playerId,
-          characterClass: p.characterClass,
-        }));
-
-        const response = await fetch('http://localhost:8080/api/room/start', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roomCode: currentRoom.roomCode,
-            characters,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to start room: ${response.statusText}`);
-        }
-
-        const result = (await response.json()) as any;
-        setMatchId(result.matchId);
-        setMatchPlayers(result.players);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to start room';
-        setConnectionError(message);
-        throw error;
-      }
-    },
-    [currentRoom, setMatchId, setMatchPlayers]
+    [currentRoom]
   );
 
   const leaveRoom = useCallback(async () => {
@@ -271,7 +238,6 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     createRoom,
     joinRoom,
     selectCharacter,
-    startRoom,
     leaveRoom,
     matchId,
     matchPlayers,
