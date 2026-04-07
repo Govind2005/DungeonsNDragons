@@ -23,13 +23,13 @@ import lombok.extern.slf4j.Slf4j;
 class LobbyController {
     private final LobbyService lobbyService;
 
-    @PostMapping("/rooms")
+    @PostMapping("/rooms/create")
     public ResponseEntity<Object> createRoom(@RequestBody CreateRoomRequest req) {
         return ResponseEntity.ok(lobbyService.createRoom(req.getPlayerId(), req.getUsername()));
     }
 
-    @PostMapping("/rooms/start")
-    public ResponseEntity<Object> startMatch(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId, @RequestParam(name="characters") String characters) {
+    @PostMapping("/rooms/ready")
+    public ResponseEntity<Object> playerReady(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId, @RequestParam(name="characters") String characters) {
         lobbyService.playerReady(roomCode, playerId, characters);
         return ResponseEntity.ok().build();
     }
@@ -38,13 +38,13 @@ class LobbyController {
     public ResponseEntity<Object> joinRoom(@PathVariable String roomCode,
             @RequestBody JoinRoomRequest req) {
         return ResponseEntity.ok(lobbyService.joinRoom(
-                roomCode, req.getPlayerId(), req.getUsername(), req.getCharacterClass()));
+                roomCode, req.getPlayerId(), req.getUsername(), "BARBARIAN"));
     }
 
     @PostMapping("/rooms/quick-join")
     public ResponseEntity<Object> quickJoin(@RequestBody JoinRoomRequest req) {
         return ResponseEntity.ok(lobbyService.quickJoin(
-                req.getPlayerId(), req.getUsername(), req.getCharacterClass()));
+                req.getPlayerId(), req.getUsername(), "BARBARIAN"));
     }
 
     @GetMapping("/rooms/{roomCode}")
@@ -72,6 +72,6 @@ class LobbyController {
     static class JoinRoomRequest {
         private String playerId;
         private String username;
-        private String characterClass; // BARBARIAN | KNIGHT | RANGER | WIZARD
+        // private String characterClass; // BARBARIAN | KNIGHT | RANGER | WIZARD
     }
 }

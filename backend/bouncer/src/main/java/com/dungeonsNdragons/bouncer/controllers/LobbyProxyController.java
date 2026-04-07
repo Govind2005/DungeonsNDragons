@@ -42,20 +42,20 @@ public class LobbyProxyController {
         Map<String, String> request = Map.of("playerId", playerId, "username", username);
 
         // 3. Forward to the internal Lobby Manager
-        return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms", request, Object.class);
+        return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/create", request, Object.class);
     }
 
     @PostMapping("/join/{roomCode}")
     public ResponseEntity<Object> joinRoom(
             @PathVariable String roomCode,
-            @RequestBody Map<String, String> payload,
+            // @RequestBody Map<String, String> payload,
             @RequestHeader("Authorization") String authHeader) {
 
         String token = jwtService.extractFromHeader(authHeader);
         Map<String, String> request = Map.of(
                 "playerId", jwtService.extractPlayerId(token).toString(),
-                "username", jwtService.extractUsername(token),
-                "characterClass", payload.get("characterClass") // React sends "WIZARD", etc.
+                "username", jwtService.extractUsername(token)
+                // "characterClass", payload.get("characterClass") // React sends "WIZARD", etc.
         );
 
         return restTemplate.postForEntity(
@@ -74,15 +74,15 @@ public class LobbyProxyController {
         return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
     }
 
-    @PostMapping("/rooms/start")
-    public ResponseEntity<Object> startMatch(
+    @PostMapping("/rooms/ready")
+    public ResponseEntity<Object> playerReady(
             @RequestParam(name="roomCode") String roomCode,
             @RequestParam(name="characters") String characters,
             @RequestHeader("Authorization") String authHeader) {
         String token = jwtService.extractFromHeader(authHeader);
         String playerId = jwtService.extractPlayerId(token).toString();
         restTemplate.postForEntity(
-                lobbyUrl + "/api/lobby/rooms/start?roomCode=" + roomCode + "&playerId=" + playerId + "&characters=" + characters,
+                lobbyUrl + "/api/lobby/rooms/ready?roomCode=" + roomCode + "&playerId=" + playerId + "&characters=" + characters,
                 null, Void.class);
         return ResponseEntity.ok().build();
     }

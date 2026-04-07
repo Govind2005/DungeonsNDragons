@@ -44,7 +44,7 @@ public class LobbyService {
         Room room = Room.builder()
                 .roomCode(roomCode).playersReady(0).status(Room.RoomStatus.WAITING).players(new ArrayList<>()).build();
         room.getPlayers().add(Room.RoomPlayer.builder()
-                .playerId(creatorPlayerId).username(creatorUsername).turnOrder(1).build());
+                .playerId(creatorPlayerId).username(creatorUsername).characterClass("BARBARIAN").turnOrder(1).build());
         saveRoom(room);
         redis.opsForSet().add(AVAILABLE_ROOMS_KEY, roomCode);
         log.info("Room {} created by {}", roomCode, creatorUsername);
@@ -64,7 +64,7 @@ public class LobbyService {
 
         int turnOrder = room.getPlayers().size() + 1;
         room.getPlayers().add(Room.RoomPlayer.builder()
-                .playerId(playerId).username(username)
+                .playerId(playerId).username(username).characterClass(characterClass)
                 .turnOrder(turnOrder).team(turnOrder <= 2 ? 1 : 2).build());
 
         if (room.getPlayers().size() == MAX_PLAYERS) {
@@ -109,7 +109,7 @@ public class LobbyService {
             broadcastRoomUpdate(room);
         }
     }
-    public void playerReady(String roomCode, String playerId, String characters) {
+    public void playerReady(String roomCode, String playerId, String characterClass) {
         Room room = getRoom(roomCode);
         if (room == null)
             throw new IllegalArgumentException("Room not found: " + roomCode);
@@ -121,7 +121,7 @@ public class LobbyService {
         int readyCount = room.getPlayersReady() + 1;
         room.getPlayers().forEach(p -> {
             if(p.getPlayerId().equals(playerId)) {
-                p.setCharacterClass(characters);
+                p.setCharacterClass(characterClass);
             }
         });
         room.setPlayersReady(readyCount);
