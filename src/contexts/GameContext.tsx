@@ -27,6 +27,7 @@ interface GameContextType {
   // Lobby state
   currentRoom: RoomData | null;
   roomCode: string | null;
+  currentPlayerId: string | null;
   isConnected: boolean;
   connectionError: string | null;
 
@@ -35,7 +36,7 @@ interface GameContextType {
 
   // Actions
   initializeWebSocket: (token: string) => Promise<void>;
-  createRoom: (token: string) => Promise<string>;
+  createRoom: (playerId: string, token: string) => Promise<string>;
   joinRoom: (roomCode: string, playerId: string, username: string, characterClass: CharacterClass | null, token: string) => Promise<void>;
   selectCharacter: (characterClass: CharacterClass, token: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
@@ -52,6 +53,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export function GameProvider({ children, token }: { children: ReactNode; token: string | null }) {
   const [currentRoom, setCurrentRoom] = useState<RoomData | null>(null);
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [stompClient, setStompClient] = useState<Client | null>(null);
@@ -61,10 +63,17 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const handleLobbyEvent = useCallback((event: LobbyEvent) => {
     console.log('Lobby event:', event);
     if (event.roomCode && event.players) {
+      const players: GamePlayer[] = event.players.map(p => ({
+        playerId: p.playerId,
+        username: p.username,
+        team: p.team,
+        turnOrder: p.turnOrder,
+        characterClass: p.characterClass ? (p.characterClass.toLowerCase() as CharacterClass) : undefined,
+      }));
       setCurrentRoom({
         roomCode: event.roomCode,
         status: event.type === 'GAME_STARTED' ? 'PLAYING' : 'WAITING',
-        players: event.players,
+        players,
       });
     }
   }, []);
@@ -106,7 +115,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   );
 
   const createRoom = useCallback(
-    async (authToken: string): Promise<string> => {
+    async (playerId: string, authToken: string): Promise<string> => {
       try {
         const response = await fetch('http://localhost:8080/api/lobby/create', {
           method: 'POST',
@@ -123,6 +132,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         const room = (await response.json()) as RoomData;
         setCurrentRoom(room);
         setRoomCode(room.roomCode);
+        setCurrentPlayerId(playerId);
         return room.roomCode;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to create room';
@@ -167,6 +177,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         const room = (await response.json()) as RoomData;
         setCurrentRoom(room);
         setRoomCode(room.roomCode);
+        setCurrentPlayerId(playerId);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to join room';
         setConnectionError(message);
@@ -182,9 +193,13 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         if (!currentRoom) {
           throw new Error('No room loaded');
         }
+        if (!currentPlayerId) {
+          throw new Error('No player ID available');
+        }
 
         const params = new URLSearchParams({
           roomCode: currentRoom.roomCode,
+          playerId: currentPlayerId,
           characters: characterClass.toUpperCase(),
         });
 
@@ -204,12 +219,13 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         throw error;
       }
     },
-    [currentRoom]
+    [currentRoom, currentPlayerId]
   );
 
   const leaveRoom = useCallback(async () => {
     setCurrentRoom(null);
     setRoomCode(null);
+    setCurrentPlayerId(null);
     setMatchId(null);
     setMatchPlayers(null);
   }, []);
@@ -231,6 +247,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const value: GameContextType = {
     currentRoom,
     roomCode,
+    currentPlayerId,
     isConnected,
     connectionError,
     stompClient,

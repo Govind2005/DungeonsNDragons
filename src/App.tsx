@@ -7,8 +7,6 @@ import { useGameLogic } from './hooks/useGameLogic';
 import { HomeScreen } from './screens/HomeScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
-import { LobbyJoinScreen } from './screens/LobbyJoinScreen';
-import { LobbyWaitingScreen } from './screens/LobbyWaitingScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
@@ -106,32 +104,15 @@ function AppContent() {
       )}
 
       {currentScreen === 'lobby-join' && (
-        <LobbyJoinScreen onNavigateTo={handleNavigateTo} />
+        <LobbyScreen onNavigateTo={handleNavigateTo} />
       )}
 
       {currentScreen === 'lobby-waiting' && (
-        <LobbyWaitingScreen onNavigateTo={handleNavigateTo} />
+        <LobbyScreen onNavigateTo={handleNavigateTo} />
       )}
 
-      {currentScreen === 'lobby' && currentMatch && (
-        <LobbyScreen
-          players={gameMatchPlayers.map((p: any) => ({
-            id: p.id,
-            username: p.username,
-            team: p.team,
-            characterClass: p.characterClass,
-            isReady: p.isReady,
-            position: p.position,
-          }))}
-          onSelectCharacter={(playerId: string) => {
-            setSelectingForPlayer(playerId);
-            setShowCharacterSelect(true);
-          }}
-          onStart={startGame}
-          onLeave={() => {
-            setCurrentScreen('home');
-          }}
-        />
+      {currentScreen === 'lobby' && (
+        <LobbyScreen onNavigateTo={handleNavigateTo} />
       )}
 
       {currentScreen === 'battle' && currentMatch && gameMatchPlayers.length > 0 && (

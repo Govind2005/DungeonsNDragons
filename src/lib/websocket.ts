@@ -12,6 +12,7 @@ export interface LobbyEvent {
     username: string;
     team: number;
     turnOrder: number;
+    characterClass?: string;
   }>;
 }
 
