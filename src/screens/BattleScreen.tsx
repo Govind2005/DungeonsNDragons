@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Swords, Shield, Zap } from 'lucide-react';
 import { CharacterClass, CHARACTERS, Ability } from '../lib/gameData';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BattlePlayer {
   id: string;
@@ -39,11 +40,13 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
   const [shakingId, setShakingId] = useState<string | null>(null);
   const [cinematicAction, setCinematicAction] = useState<{ ability: Ability; player: BattlePlayer; isLeft: boolean } | null>(null);
 
+  const { user } = useAuth();
   const currentPlayer = players.find(p => p.position === currentTurn);
-  const isMyTurn = true; // will be: currentPlayer?.id === loggedInUserId
-  const myPlayer = currentPlayer;
-  const teamBlue = players.filter(p => p.team === 'blue').sort((a, b) => a.position - b.position);
-  const teamRed = players.filter(p => p.team === 'red').sort((a, b) => a.position - b.position);
+  const myPlayer = players.find(p => p.id === user?.id);
+  const isMyTurn = currentPlayer?.id === user?.id;
+  
+  const teamBlue = players.filter(p => p.team === 'blue').sort((a: BattlePlayer, b: BattlePlayer) => a.position - b.position);
+  const teamRed = players.filter(p => p.team === 'red').sort((a: BattlePlayer, b: BattlePlayer) => a.position - b.position);
   const abilities = myPlayer ? CHARACTERS[myPlayer.characterClass].abilities : [];
   const attackAbilities = abilities.filter(a => a.type === 'attack');
   const defenseAbilities = abilities.filter(a => a.type === 'defense');
@@ -320,7 +323,7 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             </div>
 
             <div className="w-full space-y-4">
-              {(selectedTab === 'attack' ? attackAbilities : defenseAbilities).map((ability) => {
+              {(selectedTab === 'attack' ? attackAbilities : defenseAbilities).map((ability: Ability) => {
                 const canAfford = myPlayer ? myPlayer.currentMana >= ability.manaCost : false;
                 const needsTarget = ability.type === 'attack' && ability.target === 'single';
                 const isReady = canAfford && (!needsTarget || selectedTargets.length === 1);

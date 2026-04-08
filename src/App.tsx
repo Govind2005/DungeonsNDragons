@@ -10,25 +10,53 @@ import { LobbyScreen } from './screens/LobbyScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
-import { CharacterSelectModal } from './components/CharacterSelectModal';
+import { CharacterClass, Ability } from './lib/gameData';
 
 function AppContent() {
   const { user, loading, token } = useAuth();
   const { currentScreen, setCurrentScreen } = useGameLogic(user?.id);
-  const { matchId, matchPlayers, currentRoom } = useGame();
-  const [showCharacterSelect, setShowCharacterSelect] = useState(false);
-  const [selectingForPlayer, setSelectingForPlayer] = useState<string | null>(null);
+  const { matchId, matchPlayers, matchCurrentTurn } = useGame();
 
-  const {
-    currentMatch,
-    matchPlayers: gameMatchPlayers,
-    lastAction,
-    createMatch,
-    selectCharacterForPlayer,
-    startGame,
-    performAttack,
-    performDefense,
-  } = useGameLogic(user?.id);
+  const performAttack = async (abilityId: string, targets: string[]) => {
+    if (!matchId || !user) return;
+    try {
+      await fetch(`http://localhost:8080/api/game/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matchId,
+          actorPlayerId: user.id,
+          actionType: abilityId,
+          targetPlayerId: targets.length > 0 ? targets[0] : null,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to perform attack:', err);
+    }
+  };
+
+  const performDefense = async (abilityId: string) => {
+    if (!matchId || !user) return;
+    try {
+      await fetch(`http://localhost:8080/api/game/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          matchId,
+          actorPlayerId: user.id,
+          actionType: abilityId,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to perform defense:', err);
+    }
+  };
 
   const [playerProfile, setPlayerProfile] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -115,27 +143,26 @@ function AppContent() {
         <LobbyScreen onNavigateTo={handleNavigateTo} />
       )}
 
-      {currentScreen === 'battle' && currentMatch && gameMatchPlayers.length > 0 && (
+      {currentScreen === 'battle' && matchId && matchPlayers && matchPlayers.length > 0 && (
         <BattleScreen
-          players={gameMatchPlayers.map((p: any) => ({
-            id: p.id,
+          players={matchPlayers.map((p: any) => ({
+            id: p.playerId,
             username: p.username,
-            team: p.team,
-            characterClass: p.characterClass!,
+            team: p.team === 1 ? 'blue' : 'red',
+            characterClass: p.characterClass!.toLowerCase(),
             currentHp: p.currentHp,
             maxHp: p.maxHp,
             currentMana: p.currentMana,
             maxMana: p.maxMana,
-            position: p.position,
-            attackPowerBuff: p.attackPowerBuff,
-            isBound: p.isBound,
-            isWeakened: p.isWeakened,
-            isInvisible: p.isInvisible,
+            position: p.turnOrder,
+            attackPowerBuff: 0,
+            isBound: false,
+            isWeakened: false,
+            isInvisible: false,
           }))}
-          currentTurn={currentMatch.currentTurn}
+          currentTurn={matchCurrentTurn}
           onAttack={performAttack}
           onDefense={performDefense}
-          lastAction={lastAction}
         />
       )}
 
@@ -190,18 +217,6 @@ function AppContent() {
         />
       )}
 
-      <CharacterSelectModal
-        isOpen={showCharacterSelect}
-        onClose={() => {
-          setShowCharacterSelect(false);
-          setSelectingForPlayer(null);
-        }}
-        onSelect={(characterClass) => {
-          if (selectingForPlayer) {
-            selectCharacterForPlayer(selectingForPlayer, characterClass);
-          }
-        }}
-      />
     </>
   );
 }

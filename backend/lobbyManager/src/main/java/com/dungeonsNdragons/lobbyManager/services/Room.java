@@ -33,5 +33,6 @@ public class Room implements Serializable {
         private String characterClass;
         private int team;
         private int turnOrder;
+        private boolean isReady;
     }
 }

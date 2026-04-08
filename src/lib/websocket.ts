@@ -4,15 +4,18 @@ import { Client, IFrame } from '@stomp/stompjs';
 let stompClient: Client | null = null;
 
 export interface LobbyEvent {
-  type: 'PLAYER_JOINED' | 'PLAYER_LEFT' | 'ROOM_STATUS' | 'GAME_STARTED';
+  type: 'PLAYER_JOINED' | 'PLAYER_LEFT' | 'ROOM_STATUS' | 'GAME_STARTED' | 'ROOM_UPDATE';
   roomCode?: string;
   playerId?: string;
+  status?: 'WAITING' | 'STARTING' | 'PLAYING';
   players?: Array<{
     playerId: string;
     username: string;
     team: number;
     turnOrder: number;
     characterClass?: string;
+    isReady?: boolean;
+    ready?: boolean;
   }>;
 }
 
@@ -100,4 +103,11 @@ export function disconnectWebSocket(): void {
 
 export function getStompClient(): Client | null {
   return stompClient;
+}
+
+export function subscribeToMatch(matchId: string, onUpdate: (event: any) => void) {
+  if (!stompClient || !stompClient.connected) return null;
+  return stompClient.subscribe(`/topic/match/${matchId}`, (message) => {
+    onUpdate(JSON.parse(message.body));
+  });
 }

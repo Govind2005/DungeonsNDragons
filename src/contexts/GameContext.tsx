@@ -6,6 +6,7 @@ import {
   LobbyEvent,
   ErrorMessage,
   MatchStartEvent,
+  subscribeToMatch,
 } from '../lib/websocket';
 import { CharacterClass } from '../lib/gameData';
 
@@ -15,6 +16,7 @@ export interface GamePlayer {
   team: number;
   turnOrder: number;
   characterClass?: CharacterClass;
+  isReady: boolean;
 }
 
 export interface RoomData {
@@ -47,6 +49,7 @@ interface GameContextType {
   // Match state
   matchId: string | null;
   matchPlayers: GamePlayer[] | null;
+  matchCurrentTurn: number;
   setMatchId: (id: string) => void;
   setMatchPlayers: (players: GamePlayer[]) => void;
 }
@@ -63,6 +66,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const [selectedCharacter, setSelectedCharacterState] = useState<CharacterClass | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [matchPlayers, setMatchPlayers] = useState<GamePlayer[] | null>(null);
+  const [matchCurrentTurn, setMatchCurrentTurn] = useState<number>(0);
 
   const handleLobbyEvent = useCallback((event: LobbyEvent) => {
     console.log('Lobby event:', event);
@@ -73,10 +77,18 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         team: p.team,
         turnOrder: p.turnOrder,
         characterClass: p.characterClass ? (p.characterClass.toLowerCase() as CharacterClass) : undefined,
+        isReady: p.isReady !== undefined ? p.isReady : (p.ready || false),
       }));
+      
+      // Handle different event types and statuses
+      let roomStatus: 'WAITING' | 'READY' | 'PLAYING' = 'WAITING';
+      if (event.type === 'GAME_STARTED' || event.status === 'PLAYING' || event.status === 'IN_GAME' as any) {
+        roomStatus = 'PLAYING';
+      }
+      
       setCurrentRoom({
         roomCode: event.roomCode,
-        status: event.type === 'GAME_STARTED' ? 'PLAYING' : 'WAITING',
+        status: roomStatus,
         players,
       });
     }
@@ -96,8 +108,9 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
       team: p.team,
       turnOrder: p.turnOrder || 0,
       characterClass: p.characterClass,
+      isReady: p.isReady || false,
     })));
-    // Navigation happens at screen level
+    setMatchCurrentTurn(1); // Set initial turn
   }, []);
 
   const initializeWebSocket = useCallback(
@@ -261,7 +274,44 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     setCurrentPlayerId(null);
     setMatchId(null);
     setMatchPlayers(null);
+    setMatchCurrentTurn(0);
   }, []);
+
+  // Handle Match Subscriptions
+  useEffect(() => {
+    if (matchId && isConnected) {
+      const subscription = subscribeToMatch(matchId, (message) => {
+        if (message.type === 'TURN_RESULT' && message.data) {
+          const matchState = message.data;
+          setMatchCurrentTurn(matchState.currentTurn);
+          
+          if (matchState.players) {
+            setMatchPlayers((prev) => {
+              if (!prev) return null;
+              // Map backend MatchPlayerState back to frontend GamePlayer
+              return matchState.players.map((p: any) => ({
+                playerId: p.playerId,
+                username: p.username,
+                team: p.team,
+                turnOrder: p.turnOrder,
+                characterClass: p.characterClass ? p.characterClass.toLowerCase() : undefined,
+                isReady: true,
+                currentHp: p.hp,
+                maxHp: p.maxHp,
+                currentMana: p.mana,
+                maxMana: p.maxMana,
+                isAlive: p.alive,
+                effects: p.effects || []
+              }));
+            });
+          }
+        }
+      });
+      return () => {
+        subscription?.unsubscribe();
+      };
+    }
+  }, [matchId, isConnected]);
 
   // Auto-initialize WebSocket when token becomes available
   useEffect(() => {
@@ -294,6 +344,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     leaveRoom,
     matchId,
     matchPlayers,
+    matchCurrentTurn,
     setMatchId,
     setMatchPlayers,
   };

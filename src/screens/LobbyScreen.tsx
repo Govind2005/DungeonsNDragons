@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, LogOut, Swords, Wifi, Shield, Zap, Copy, Check } from 'lucide-react';
 import { CharacterClass, CHARACTERS } from '../lib/gameData';
-import { useGame } from '../contexts/GameContext';
+import { useGame, GamePlayer } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
 
 const CLASS_ICONS: Record<CharacterClass, string> = {
@@ -64,7 +64,7 @@ const STAT_BAR = ({
 );
 
 export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) => void }) {
-  const { createRoom, joinRoom, currentRoom, selectCharacter, setSelectedCharacter, selectedCharacter, playerReady, isConnected } = useGame();
+  const { createRoom, joinRoom, currentRoom, selectCharacter, setSelectedCharacter, selectedCharacter, playerReady, isConnected, matchId, matchPlayers } = useGame();
   const { user, token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
@@ -74,11 +74,21 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(false);
+  const [isCurrentPlayerReady, setIsCurrentPlayerReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (currentRoom) setPhase('lobby');
   }, [currentRoom]);
+
+  // Navigate to battle when match starts or room status changes
+  useEffect(() => {
+    if (matchId && matchPlayers && matchPlayers.length > 0) {
+      onNavigateTo('battle');
+    } else if (currentRoom?.status === 'PLAYING') {
+      onNavigateTo('battle');
+    }
+  }, [matchId, matchPlayers, currentRoom?.status, onNavigateTo]);
 
   const handleCreateRoom = async () => {
     if (!token || !user) {
@@ -114,9 +124,15 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     }
   };
 
-  const handleSelectCharacter = (characterClass: CharacterClass) => {
-    setSelectedCharacter(characterClass);
-    setShowCharacterModal(false);
+  const handleSelectCharacter = async (characterClass: CharacterClass) => {
+    if (!token) return;
+    try {
+      await selectCharacter(characterClass, token);
+      setSelectedCharacter(characterClass);
+      setShowCharacterModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to select character');
+    }
   };
 
   const handleLeave = async () => {
@@ -124,6 +140,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     setJoinCode('');
     setError(null);
     setSelectedCharacter(null);
+    setIsCurrentPlayerReady(false);
   };
 
   const handleReady = async () => {
@@ -134,10 +151,11 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     setLoading(true);
     setError(null);
     try {
-      // First send character selection to backend
-      await selectCharacter(selectedCharacter, token);
-      // Then mark as ready
+      // Mark as ready (character already synced in handleSelectCharacter)
       await playerReady(token);
+      // Lock character selection
+      setIsCurrentPlayerReady(true);
+      setShowCharacterModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to mark as ready');
     } finally {
@@ -153,10 +171,25 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     }
   };
 
-  const allPlayersReady = currentRoom?.players.every((p) => p.characterClass);
+  // Check if all players are ready - use backend room status if available, otherwise check individual player isReady
+  const allPlayersReady = currentRoom?.status === 'PLAYING' || 
+                          (currentRoom?.players.every((p) => p.isReady) && currentRoom?.players.length === 4);
   const currentPlayer = currentRoom?.players.find((p) => p.playerId === user?.id);
 
-  const renderPlayerCard = (player: any | undefined, slotIndex: number) => {
+  // Update current player ready state based on backend
+  useEffect(() => {
+    if (currentPlayer) {
+      const isPlayerReadyFromBackend = currentPlayer.isReady || false;
+      setIsCurrentPlayerReady(isPlayerReadyFromBackend);
+      
+      // If we don't have a local character selected but backend has one, sync it
+      if (!selectedCharacter && currentPlayer.characterClass) {
+        setSelectedCharacter(currentPlayer.characterClass);
+      }
+    }
+  }, [currentPlayer, selectedCharacter, setSelectedCharacter]);
+
+  const renderPlayerCard = (player: GamePlayer | undefined, slotIndex: number) => {
     const teamColor = slotIndex < 2 ? 'blue' : 'red';
     const isCurrentPlayer = player?.playerId === user?.id;
     const delay = `${slotIndex * 80}ms`;
@@ -186,12 +219,13 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     }
 
     const isHovered = hoveredPlayer === player.playerId;
+    const playerClass = player?.characterClass ? (player.characterClass.toLowerCase() as CharacterClass) : null;
 
-    // For current player, use selectedCharacter if available, otherwise use characterClass
-    const displayCharacter = isCurrentPlayer && selectedCharacter ? selectedCharacter : (player?.characterClass?.toLowerCase() as CharacterClass);
+    // For current player, use selectedCharacter if available, otherwise use characterClass from backend
+    const displayCharacter = isCurrentPlayer && selectedCharacter ? selectedCharacter : playerClass;
     const displayCharData = displayCharacter ? CHARACTERS[displayCharacter] : null;
     const displayClassTheme = displayCharacter ? CLASS_COLORS[displayCharacter] : null;
-    const isReady = player.characterClass !== undefined || (isCurrentPlayer && selectedCharacter !== null);
+    const isReady = player.isReady;
 
     return (
       <div
@@ -204,8 +238,8 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
         {/* Ready badge */}
         {isReady && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-            <div className={`${isCurrentPlayer && selectedCharacter && !player.characterClass ? 'bg-blue-400 text-black' : 'bg-lime-400 text-black'} text-[10px] font-black tracking-widest px-3 py-0.5 skew-x-[-8deg]`}>
-              <span className="skew-x-[8deg] inline-block">{isCurrentPlayer && selectedCharacter && !player.characterClass ? '⧖ SELECTED' : '✓ READY'}</span>
+            <div className="bg-lime-400 text-black text-[10px] font-black tracking-widest px-3 py-0.5 skew-x-[-8deg]">
+              <span className="skew-x-[8deg] inline-block">READY</span>
             </div>
           </div>
         )}
@@ -213,19 +247,19 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
         {/* Card */}
         <div
           onClick={() => {
-            if (isCurrentPlayer) {
+            if (isCurrentPlayer && !isCurrentPlayerReady) {
               setShowCharacterModal(true);
             }
           }}
           className={`
-            relative overflow-hidden ${isCurrentPlayer ? 'cursor-pointer' : ''} h-80 border-2 rounded-sm transition-all duration-300
+            relative overflow-hidden ${isCurrentPlayer && !isCurrentPlayerReady ? 'cursor-pointer' : ''} h-80 border-2 rounded-sm transition-all duration-300
             ${displayClassTheme
               ? `bg-gradient-to-b ${displayClassTheme.bg} ${displayClassTheme.border} ${isHovered ? displayClassTheme.glow : ''}`
               : teamColor === 'blue'
               ? 'bg-gradient-to-b from-cyan-950/40 to-slate-900/60 border-cyan-600/40 hover:border-cyan-400/60'
               : 'bg-gradient-to-b from-red-950/40 to-slate-900/60 border-red-600/40 hover:border-red-400/60'
             }
-            ${isHovered && isCurrentPlayer ? 'scale-[1.02] -translate-y-1' : ''}
+            ${isHovered && isCurrentPlayer && !isCurrentPlayerReady ? 'scale-[1.02] -translate-y-1' : ''}
           `}
         >
           {/* Scan line overlay */}
@@ -288,9 +322,14 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
               </div>
               <div className="text-center space-y-1">
                 <div className="text-white text-xs font-black tracking-widest">PLAYER {slotIndex + 1}</div>
-                {isCurrentPlayer && (
+                {isCurrentPlayer && !isCurrentPlayerReady && (
                   <div className={`text-[10px] font-semibold ${teamColor === 'blue' ? 'text-cyan-500' : 'text-red-500'} animate-pulse`}>
                     CLICK TO SELECT CLASS
+                  </div>
+                )}
+                {isCurrentPlayer && isCurrentPlayerReady && (
+                  <div className={`text-[10px] font-semibold ${teamColor === 'blue' ? 'text-cyan-500' : 'text-red-500'}`}>
+                    LOCKED IN
                   </div>
                 )}
               </div>
@@ -616,7 +655,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
               </div>
             ))}
             <span className="text-slate-600 text-[10px] ml-1">
-              {currentRoom?.players.filter((p) => p.characterClass).length || 0}/4 READY
+              {currentRoom?.players.filter((p) => p.isReady).length || 0}/4 READY
             </span>
           </div>
 
@@ -634,6 +673,16 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
                 ✓ STARTING...
               </span>
             </button>
+          ) : isCurrentPlayerReady ? (
+            <button
+              disabled={true}
+              className="px-10 py-3 bg-lime-500 text-white rounded-sm transition-all text-sm font-black tracking-widest border border-lime-400"
+            >
+              <span className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                ✓ READY
+              </span>
+            </button>
           ) : selectedCharacter ? (
             <button
               onClick={handleReady}
@@ -648,7 +697,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
             >
               <span className="relative flex items-center gap-2">
                 <Shield className="w-4 h-4" />
-                {loading ? 'CONFIRMING...' : 'READY'}
+                {loading ? 'CONFIRMING...' : 'READY UP'}
               </span>
             </button>
           ) : (
@@ -658,7 +707,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
             >
               <span className="flex items-center gap-2">
                 <Zap className="w-4 h-4" />
-                {!selectedCharacter ? 'SELECT CLASS' : 'WAITING...'}
+                SELECT CLASS
               </span>
             </button>
           )}

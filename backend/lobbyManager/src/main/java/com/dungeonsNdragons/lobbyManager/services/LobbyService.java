@@ -44,7 +44,7 @@ public class LobbyService {
         Room room = Room.builder()
                 .roomCode(roomCode).playersReady(0).status(Room.RoomStatus.WAITING).players(new ArrayList<>()).build();
         room.getPlayers().add(Room.RoomPlayer.builder()
-                .playerId(creatorPlayerId).username(creatorUsername).characterClass("BARBARIAN").turnOrder(1).build());
+                .playerId(creatorPlayerId).username(creatorUsername).turnOrder(1).build());
         saveRoom(room);
         redis.opsForSet().add(AVAILABLE_ROOMS_KEY, roomCode);
         log.info("Room {} created by {}", roomCode, creatorUsername);
@@ -130,17 +130,25 @@ public class LobbyService {
         Room room = getRoom(roomCode);
         if (room == null)
             throw new IllegalArgumentException("Room not found: " + roomCode);
-        if (room.getStatus() != Room.RoomStatus.STARTING)
-            throw new IllegalStateException("Room is not ready to start");
+        if (room.getStatus() != Room.RoomStatus.STARTING && room.getStatus() != Room.RoomStatus.WAITING)
+            throw new IllegalStateException("Room is not ready to accept ready status");
         if (room.getPlayers().stream().noneMatch(p -> p.getPlayerId().equals(playerId)))
             throw new IllegalStateException("Not a member of this room");
 
-        int readyCount = room.getPlayersReady() + 1;
-        room.setPlayersReady(readyCount);
-        if(readyCount == MAX_PLAYERS){
+        room.getPlayers().forEach(p -> {
+            if (p.getPlayerId().equals(playerId)) {
+                p.setReady(true);
+            }
+        });
+
+        long readyCount = room.getPlayers().stream().filter(Room.RoomPlayer::isReady).count();
+        room.setPlayersReady((int) readyCount);
+        
+        if (readyCount == MAX_PLAYERS) {
             initializeMatch(room);
         } else {
             saveRoom(room);
+            broadcastRoomUpdate(room);
         }
     }
     
@@ -191,12 +199,16 @@ public class LobbyService {
             redis.convertAndSend("broadcast:lobby", Map.of(
                     "type", "ROOM_UPDATE", "roomCode", room.getRoomCode(),
                     "players", room.getPlayers().stream()
-                            .map(p -> Map.of(
-                                    "playerId", p.getPlayerId(),
-                                    "username", p.getUsername(),
-                                    "team", p.getTeam(),
-                                    "turnOrder", p.getTurnOrder(),
-                                    "characterClass", p.getCharacterClass() != null ? p.getCharacterClass() : "BARBARIAN"))
+                            .map(p -> {
+                                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                                map.put("playerId", p.getPlayerId());
+                                map.put("username", p.getUsername());
+                                map.put("team", p.getTeam());
+                                map.put("turnOrder", p.getTurnOrder());
+                                map.put("characterClass", p.getCharacterClass());
+                                map.put("isReady", p.isReady());
+                                return map;
+                            })
                             .toList(),
                     "status", room.getStatus().name()));
         } catch (Exception e) {
@@ -207,11 +219,16 @@ public class LobbyService {
     private void broadcastMatchStart(Room room, String matchId) {
         redis.convertAndSend("broadcast:lobby", Map.of(
                 "type", "MATCH_START", "roomCode", room.getRoomCode(), "matchId", matchId,
-                "players", room.getPlayers().stream().map(p -> Map.of(
-                        "playerId", p.getPlayerId(), "username", p.getUsername(),
-                        "team", p.getTeam(), "turnOrder", p.getTurnOrder(),
-                        "characterClass", p.getCharacterClass() != null ? p.getCharacterClass() : "BARBARIAN"))
-                        .toList()));
+                "players", room.getPlayers().stream().map(p -> {
+                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("playerId", p.getPlayerId());
+                    map.put("username", p.getUsername());
+                    map.put("team", p.getTeam());
+                    map.put("turnOrder", p.getTurnOrder());
+                    map.put("characterClass", p.getCharacterClass());
+                    map.put("isReady", p.isReady());
+                    return map;
+                }).toList()));
     }
 
     private String generateRoomCode() {

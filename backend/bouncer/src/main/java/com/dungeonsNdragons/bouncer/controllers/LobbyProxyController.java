@@ -52,11 +52,12 @@ public class LobbyProxyController {
             @RequestHeader("Authorization") String authHeader) {
 
         String token = jwtService.extractFromHeader(authHeader);
-        Map<String, String> request = Map.of(
-                "playerId", jwtService.extractPlayerId(token).toString(),
-                "username", jwtService.extractUsername(token),
-                "characterClass", payload != null && payload.get("characterClass") != null ? payload.get("characterClass") : "BARBARIAN"
-        );
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("playerId", jwtService.extractPlayerId(token).toString());
+        request.put("username", jwtService.extractUsername(token));
+        if (payload != null && payload.get("characterClass") != null) {
+            request.put("characterClass", payload.get("characterClass"));
+        }
 
         return restTemplate.postForEntity(
                 lobbyUrl + "/api/lobby/rooms/" + roomCode + "/join", request, Object.class);
@@ -67,10 +68,12 @@ public class LobbyProxyController {
             @RequestBody Map<String, String> payload,
             @RequestHeader("Authorization") String authHeader) {
         String token = jwtService.extractFromHeader(authHeader);
-        Map<String, String> request = Map.of(
-                "playerId", jwtService.extractPlayerId(token).toString(),
-                "username", jwtService.extractUsername(token),
-                "characterClass", payload.get("characterClass"));
+        Map<String, String> request = new java.util.HashMap<>();
+        request.put("playerId", jwtService.extractPlayerId(token).toString());
+        request.put("username", jwtService.extractUsername(token));
+        if (payload != null && payload.get("characterClass") != null) {
+            request.put("characterClass", payload.get("characterClass"));
+        }
         return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
     }
 
