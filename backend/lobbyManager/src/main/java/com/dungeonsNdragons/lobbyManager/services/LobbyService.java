@@ -109,7 +109,24 @@ public class LobbyService {
             broadcastRoomUpdate(room);
         }
     }
-    public void playerReady(String roomCode, String playerId, String characterClass) {
+    public void selectCharacter(String roomCode, String playerId, String characterClass) {
+        Room room = getRoom(roomCode);
+        if (room == null)
+            throw new IllegalArgumentException("Room not found: " + roomCode);
+        if (room.getPlayers().stream().noneMatch(p -> p.getPlayerId().equals(playerId)))
+            throw new IllegalStateException("Not a member of this room");
+
+        room.getPlayers().forEach(p -> {
+            if(p.getPlayerId().equals(playerId)) {
+                p.setCharacterClass(characterClass);
+            }
+        });
+        saveRoom(room);
+        broadcastRoomUpdate(room);
+        log.info("Player {} selected character {} in room {}", playerId, characterClass, roomCode);
+    }
+
+    public void playerReady(String roomCode, String playerId) {
         Room room = getRoom(roomCode);
         if (room == null)
             throw new IllegalArgumentException("Room not found: " + roomCode);
@@ -119,11 +136,6 @@ public class LobbyService {
             throw new IllegalStateException("Not a member of this room");
 
         int readyCount = room.getPlayersReady() + 1;
-        room.getPlayers().forEach(p -> {
-            if(p.getPlayerId().equals(playerId)) {
-                p.setCharacterClass(characterClass);
-            }
-        });
         room.setPlayersReady(readyCount);
         if(readyCount == MAX_PLAYERS){
             initializeMatch(room);
@@ -179,7 +191,13 @@ public class LobbyService {
             redis.convertAndSend("broadcast:lobby", Map.of(
                     "type", "ROOM_UPDATE", "roomCode", room.getRoomCode(),
                     "players", room.getPlayers().stream()
-                            .map(p -> Map.of("username", p.getUsername(), "team", p.getTeam())).toList(),
+                            .map(p -> Map.of(
+                                    "playerId", p.getPlayerId(),
+                                    "username", p.getUsername(),
+                                    "team", p.getTeam(),
+                                    "turnOrder", p.getTurnOrder(),
+                                    "characterClass", p.getCharacterClass() != null ? p.getCharacterClass() : "BARBARIAN"))
+                            .toList(),
                     "status", room.getStatus().name()));
         } catch (Exception e) {
             log.warn("Failed to broadcast room update: {}", e.getMessage());

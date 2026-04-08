@@ -28,9 +28,17 @@ class LobbyController {
         return ResponseEntity.ok(lobbyService.createRoom(req.getPlayerId(), req.getUsername()));
     }
 
+    @PostMapping("/rooms/{roomCode}/select-character")
+    public ResponseEntity<Object> selectCharacter(@PathVariable String roomCode,
+            @RequestParam(name="playerId") String playerId, 
+            @RequestParam(name="characterClass") String characterClass) {
+        lobbyService.selectCharacter(roomCode, playerId, characterClass);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/rooms/ready")
-    public ResponseEntity<Object> playerReady(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId, @RequestParam(name="characters") String characters) {
-        lobbyService.playerReady(roomCode, playerId, characters);
+    public ResponseEntity<Object> playerReady(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId) {
+        lobbyService.playerReady(roomCode, playerId);
         return ResponseEntity.ok().build();
     }
 
@@ -38,7 +46,7 @@ class LobbyController {
     public ResponseEntity<Object> joinRoom(@PathVariable String roomCode,
             @RequestBody JoinRoomRequest req) {
         return ResponseEntity.ok(lobbyService.joinRoom(
-                roomCode, req.getPlayerId(), req.getUsername(), "BARBARIAN"));
+                roomCode, req.getPlayerId(), req.getUsername(), req.getCharacterClass() != null ? req.getCharacterClass() : "BARBARIAN"));
     }
 
     @PostMapping("/rooms/quick-join")
@@ -72,6 +80,6 @@ class LobbyController {
     static class JoinRoomRequest {
         private String playerId;
         private String username;
-        // private String characterClass; // BARBARIAN | KNIGHT | RANGER | WIZARD
+        private String characterClass;
     }
 }

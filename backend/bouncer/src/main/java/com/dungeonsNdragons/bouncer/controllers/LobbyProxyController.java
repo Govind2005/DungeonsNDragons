@@ -48,14 +48,14 @@ public class LobbyProxyController {
     @PostMapping("/join/{roomCode}")
     public ResponseEntity<Object> joinRoom(
             @PathVariable String roomCode,
-            // @RequestBody Map<String, String> payload,
+            @RequestBody(required = false) Map<String, String> payload,
             @RequestHeader("Authorization") String authHeader) {
 
         String token = jwtService.extractFromHeader(authHeader);
         Map<String, String> request = Map.of(
                 "playerId", jwtService.extractPlayerId(token).toString(),
-                "username", jwtService.extractUsername(token)
-                // "characterClass", payload.get("characterClass") // React sends "WIZARD", etc.
+                "username", jwtService.extractUsername(token),
+                "characterClass", payload != null && payload.get("characterClass") != null ? payload.get("characterClass") : "BARBARIAN"
         );
 
         return restTemplate.postForEntity(
@@ -74,15 +74,27 @@ public class LobbyProxyController {
         return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
     }
 
-    @PostMapping("/rooms/ready")
-    public ResponseEntity<Object> playerReady(
-            @RequestParam(name="roomCode") String roomCode,
-            @RequestParam(name="characters") String characters,
+    @PostMapping("/rooms/{roomCode}/select-character")
+    public ResponseEntity<Object> selectCharacter(
+            @PathVariable String roomCode,
+            @RequestParam(name="characterClass") String characterClass,
             @RequestHeader("Authorization") String authHeader) {
         String token = jwtService.extractFromHeader(authHeader);
         String playerId = jwtService.extractPlayerId(token).toString();
         restTemplate.postForEntity(
-                lobbyUrl + "/api/lobby/rooms/ready?roomCode=" + roomCode + "&playerId=" + playerId + "&characters=" + characters,
+                lobbyUrl + "/api/lobby/rooms/" + roomCode + "/select-character?playerId=" + playerId + "&characterClass=" + characterClass,
+                null, Void.class);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/rooms/ready")
+    public ResponseEntity<Object> playerReady(
+            @RequestParam(name="roomCode") String roomCode,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = jwtService.extractFromHeader(authHeader);
+        String playerId = jwtService.extractPlayerId(token).toString();
+        restTemplate.postForEntity(
+                lobbyUrl + "/api/lobby/rooms/ready?roomCode=" + roomCode + "&playerId=" + playerId,
                 null, Void.class);
         return ResponseEntity.ok().build();
     }

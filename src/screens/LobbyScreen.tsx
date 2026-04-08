@@ -64,7 +64,7 @@ const STAT_BAR = ({
 );
 
 export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) => void }) {
-  const { createRoom, joinRoom, currentRoom, selectCharacter, isConnected } = useGame();
+  const { createRoom, joinRoom, currentRoom, selectCharacter, setSelectedCharacter, selectedCharacter, playerReady, isConnected } = useGame();
   const { user, token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
@@ -114,24 +114,35 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     }
   };
 
-  const handleSelectCharacter = async (characterClass: CharacterClass) => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await selectCharacter(characterClass, token);
-      setShowCharacterModal(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to select character');
-    } finally {
-      setLoading(false);
-    }
+  const handleSelectCharacter = (characterClass: CharacterClass) => {
+    setSelectedCharacter(characterClass);
+    setShowCharacterModal(false);
   };
 
   const handleLeave = async () => {
     setPhase('choose');
     setJoinCode('');
     setError(null);
+    setSelectedCharacter(null);
+  };
+
+  const handleReady = async () => {
+    if (!token || !selectedCharacter) {
+      setError('Please select a character first');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      // First send character selection to backend
+      await selectCharacter(selectedCharacter, token);
+      // Then mark as ready
+      await playerReady(token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to mark as ready');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyRoomCode = () => {
@@ -174,9 +185,13 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
       );
     }
 
-    const charData = player.characterClass ? CHARACTERS[player.characterClass] : null;
-    const classTheme = player.characterClass ? CLASS_COLORS[player.characterClass] : null;
     const isHovered = hoveredPlayer === player.playerId;
+
+    // For current player, use selectedCharacter if available, otherwise use characterClass
+    const displayCharacter = isCurrentPlayer && selectedCharacter ? selectedCharacter : (player?.characterClass?.toLowerCase() as CharacterClass);
+    const displayCharData = displayCharacter ? CHARACTERS[displayCharacter] : null;
+    const displayClassTheme = displayCharacter ? CLASS_COLORS[displayCharacter] : null;
+    const isReady = player.characterClass !== undefined || (isCurrentPlayer && selectedCharacter !== null);
 
     return (
       <div
@@ -187,10 +202,10 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
         onMouseLeave={() => setHoveredPlayer(null)}
       >
         {/* Ready badge */}
-        {player.characterClass && (
+        {isReady && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-            <div className="bg-lime-400 text-black text-[10px] font-black tracking-widest px-3 py-0.5 skew-x-[-8deg]">
-              <span className="skew-x-[8deg] inline-block">✓ READY</span>
+            <div className={`${isCurrentPlayer && selectedCharacter && !player.characterClass ? 'bg-blue-400 text-black' : 'bg-lime-400 text-black'} text-[10px] font-black tracking-widest px-3 py-0.5 skew-x-[-8deg]`}>
+              <span className="skew-x-[8deg] inline-block">{isCurrentPlayer && selectedCharacter && !player.characterClass ? '⧖ SELECTED' : '✓ READY'}</span>
             </div>
           </div>
         )}
@@ -198,19 +213,19 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
         {/* Card */}
         <div
           onClick={() => {
-            if (isCurrentPlayer && !charData) {
+            if (isCurrentPlayer) {
               setShowCharacterModal(true);
             }
           }}
           className={`
-            relative overflow-hidden ${isCurrentPlayer && !charData ? 'cursor-pointer' : ''} h-80 border-2 rounded-sm transition-all duration-300
-            ${classTheme
-              ? `bg-gradient-to-b ${classTheme.bg} ${classTheme.border} ${isHovered ? classTheme.glow : ''}`
+            relative overflow-hidden ${isCurrentPlayer ? 'cursor-pointer' : ''} h-80 border-2 rounded-sm transition-all duration-300
+            ${displayClassTheme
+              ? `bg-gradient-to-b ${displayClassTheme.bg} ${displayClassTheme.border} ${isHovered ? displayClassTheme.glow : ''}`
               : teamColor === 'blue'
               ? 'bg-gradient-to-b from-cyan-950/40 to-slate-900/60 border-cyan-600/40 hover:border-cyan-400/60'
               : 'bg-gradient-to-b from-red-950/40 to-slate-900/60 border-red-600/40 hover:border-red-400/60'
             }
-            ${isHovered && isCurrentPlayer && !charData ? 'scale-[1.02] -translate-y-1' : ''}
+            ${isHovered && isCurrentPlayer ? 'scale-[1.02] -translate-y-1' : ''}
           `}
         >
           {/* Scan line overlay */}
@@ -220,7 +235,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
           <div className={`absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 ${teamColor === 'blue' ? 'border-cyan-400' : 'border-red-400'}`} />
           <div className={`absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 ${teamColor === 'blue' ? 'border-cyan-400' : 'border-red-400'}`} />
 
-          {charData ? (
+          {displayCharData ? (
             <div className="h-full flex flex-col">
               {/* Character image */}
               <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-black/20">
@@ -229,19 +244,19 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
                   className={`absolute inset-0 opacity-20 transition-opacity duration-500 ${isHovered ? 'opacity-40' : ''}`}
                   style={{
                     background: `radial-gradient(ellipse at center, ${
-                      player.characterClass === 'wizard' ? '#a855f7' :
-                      player.characterClass === 'barbarian' ? '#f97316' :
-                      player.characterClass === 'knight' ? '#60a5fa' : '#4ade80'
+                      displayCharacter === 'wizard' ? '#a855f7' :
+                      displayCharacter === 'barbarian' ? '#f97316' :
+                      displayCharacter === 'knight' ? '#60a5fa' : '#4ade80'
                     } 0%, transparent 70%)`,
                   }}
                 />
                 <img
-                  src={charData.image}
-                  alt={charData.name}
+                  src={displayCharData.image}
+                  alt={displayCharData.name}
                   className={`h-48 w-auto object-contain relative z-10 transition-all duration-500 drop-shadow-2xl ${isHovered ? 'scale-110' : 'scale-100'}`}
                 />
                 <div className={`absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-black/60 border ${teamColor === 'blue' ? 'border-cyan-500/50' : 'border-red-500/50'} flex items-center justify-center text-base`}>
-                  {CLASS_ICONS[player.characterClass!]}
+                  {CLASS_ICONS[displayCharacter!]}
                 </div>
               </div>
 
@@ -249,8 +264,8 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
               <div className="bg-black/60 backdrop-blur-sm px-3 py-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className={`font-black text-sm tracking-wider uppercase italic ${classTheme?.text}`}>
-                      {charData.name}
+                    <div className={`font-black text-sm tracking-wider uppercase italic ${displayClassTheme?.text}`}>
+                      {displayCharData.name}
                     </div>
                     <div className="text-slate-400 text-[10px] font-semibold tracking-widest">
                       {isCurrentPlayer ? `${player.username.toUpperCase()} (YOU)` : player.username.toUpperCase()}
@@ -261,8 +276,8 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
                   </div>
                 </div>
                 <div className="space-y-1.5 pt-1">
-                  <STAT_BAR label="HP" value={charData.maxHp} max={210} color={teamColor === 'blue' ? 'bg-cyan-400' : 'bg-red-400'} />
-                  <STAT_BAR label="MANA" value={charData.maxMana} max={130} color="bg-lime-400" />
+                  <STAT_BAR label="HP" value={displayCharData.maxHp} max={210} color={teamColor === 'blue' ? 'bg-cyan-400' : 'bg-red-400'} />
+                  <STAT_BAR label="MANA" value={displayCharData.maxMana} max={130} color="bg-lime-400" />
                 </div>
               </div>
             </div>
@@ -606,27 +621,47 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
           </div>
 
           <div className="text-slate-600 text-[10px] italic tracking-wider hidden lg:block">
-            Click your card to select a champion class
+            {selectedCharacter ? `${selectedCharacter.toUpperCase()} selected` : 'Click your card to select class'}
           </div>
 
-          <button
-            disabled={!allPlayersReady}
-            className={`
-              group relative px-10 py-3 transition-all duration-300 text-sm font-black tracking-widest rounded-sm
-              ${allPlayersReady
-                ? 'bg-lime-400 hover:bg-lime-300 text-black shadow-[0_0_20px_rgba(163,230,53,0.3)] hover:shadow-[0_0_30px_rgba(163,230,53,0.5)] hover:scale-105 active:scale-95'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
-              }
-            `}
-          >
-            {allPlayersReady && (
-              <span className="absolute inset-0 rounded-sm bg-lime-300/20 animate-ping opacity-0 group-hover:opacity-100" />
-            )}
-            <span className="relative flex items-center gap-2">
-              <Swords className="w-4 h-4" />
-              STARTING...
-            </span>
-          </button>
+          {allPlayersReady ? (
+            <button
+              disabled={true}
+              className="px-10 py-3 bg-lime-400 text-black rounded-sm transition-all text-sm font-black tracking-widest shadow-[0_0_20px_rgba(163,230,53,0.3)]"
+            >
+              <span className="flex items-center gap-2">
+                <Swords className="w-4 h-4" />
+                ✓ STARTING...
+              </span>
+            </button>
+          ) : selectedCharacter ? (
+            <button
+              onClick={handleReady}
+              disabled={loading}
+              className={`
+                group relative px-10 py-3 transition-all duration-300 text-sm font-black tracking-widest rounded-sm
+                ${!loading
+                  ? 'bg-blue-500 hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95'
+                  : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                }
+              `}
+            >
+              <span className="relative flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                {loading ? 'CONFIRMING...' : 'READY'}
+              </span>
+            </button>
+          ) : (
+            <button
+              disabled={true}
+              className="px-10 py-3 bg-slate-800 text-slate-600 rounded-sm text-sm font-black tracking-widest border border-slate-700 cursor-not-allowed"
+            >
+              <span className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                {!selectedCharacter ? 'SELECT CLASS' : 'WAITING...'}
+              </span>
+            </button>
+          )}
         </footer>
       </div>
 

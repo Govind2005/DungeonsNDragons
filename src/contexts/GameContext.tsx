@@ -30,6 +30,7 @@ interface GameContextType {
   currentPlayerId: string | null;
   isConnected: boolean;
   connectionError: string | null;
+  selectedCharacter: CharacterClass | null;
 
   // WebSocket
   stompClient: Client | null;
@@ -39,6 +40,8 @@ interface GameContextType {
   createRoom: (playerId: string, token: string) => Promise<string>;
   joinRoom: (roomCode: string, playerId: string, username: string, characterClass: CharacterClass | null, token: string) => Promise<void>;
   selectCharacter: (characterClass: CharacterClass, token: string) => Promise<void>;
+  setSelectedCharacter: (characterClass: CharacterClass | null) => void;
+  playerReady: (token: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
 
   // Match state
@@ -57,6 +60,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [stompClient, setStompClient] = useState<Client | null>(null);
+  const [selectedCharacter, setSelectedCharacterState] = useState<CharacterClass | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [matchPlayers, setMatchPlayers] = useState<GamePlayer[] | null>(null);
 
@@ -197,13 +201,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
           throw new Error('No player ID available');
         }
 
-        const params = new URLSearchParams({
-          roomCode: currentRoom.roomCode,
-          playerId: currentPlayerId,
-          characters: characterClass.toUpperCase(),
-        });
-
-        const response = await fetch(`http://localhost:8080/api/lobby/rooms/ready?${params.toString()}`, {
+        const response = await fetch(`http://localhost:8080/api/lobby/rooms/${currentRoom.roomCode}/select-character?characterClass=${characterClass.toUpperCase()}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -213,6 +211,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
         if (!response.ok) {
           throw new Error(`Failed to select character: ${response.statusText}`);
         }
+
+        setSelectedCharacterState(characterClass);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to select character';
         setConnectionError(message);
@@ -221,6 +221,39 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     },
     [currentRoom, currentPlayerId]
   );
+
+  const playerReady = useCallback(
+    async (authToken: string) => {
+      try {
+        if (!currentRoom) {
+          throw new Error('No room loaded');
+        }
+        if (!currentPlayerId) {
+          throw new Error('No player ID available');
+        }
+
+        const response = await fetch(`http://localhost:8080/api/lobby/rooms/ready?roomCode=${currentRoom.roomCode}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to mark as ready: ${response.statusText}`);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to mark as ready';
+        setConnectionError(message);
+        throw error;
+      }
+    },
+    [currentRoom, currentPlayerId]
+  );
+
+  const setSelectedCharacter = useCallback((characterClass: CharacterClass | null) => {
+    setSelectedCharacterState(characterClass);
+  }, []);
 
   const leaveRoom = useCallback(async () => {
     setCurrentRoom(null);
@@ -251,10 +284,13 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     isConnected,
     connectionError,
     stompClient,
+    selectedCharacter,
     initializeWebSocket,
     createRoom,
     joinRoom,
     selectCharacter,
+    setSelectedCharacter,
+    playerReady,
     leaveRoom,
     matchId,
     matchPlayers,
