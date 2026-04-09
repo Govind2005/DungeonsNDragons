@@ -1,12 +1,12 @@
 package com.dungeonsNdragons.bouncer.webSockets;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +21,7 @@ public class GameBroadcaster {
     private final SimpMessagingTemplate messaging;
     private final RedisTemplate<String, Object> redis;
     private final ObjectMapper objectMapper;
+    private final SessionRegistry sessionRegistry; // INJECTED SESSION REGISTRY
 
     @Value("${redis.match-channel-prefix:broadcast:match:}")
     private String channelPrefix;
@@ -50,8 +51,24 @@ public class GameBroadcaster {
         
         for (Map<String, Object> player : players) {
             String playerId = (String) player.get("playerId");
-            // This is the Direct Mail! It sends only to this specific player's session.
-            messaging.convertAndSendToUser(playerId, "/queue/match-start", payload);
+            String sessionId = sessionRegistry.getSessionForPlayer(playerId);
+            
+            // THE FIX: Explicitly target the user's session ID
+            if (sessionId != null) {
+                SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+                headerAccessor.setSessionId(sessionId);
+                headerAccessor.setLeaveMutable(true);
+                
+                messaging.convertAndSendToUser(
+                    playerId, 
+                    "/queue/match-start", 
+                    payload, 
+                    headerAccessor.getMessageHeaders()
+                );
+                log.info("Delivered MATCH_START to player {} via session {}", playerId, sessionId);
+            } else {
+                log.warn("Cannot send MATCH_START - player {} has no active session", playerId);
+            }
         }
     }
 }

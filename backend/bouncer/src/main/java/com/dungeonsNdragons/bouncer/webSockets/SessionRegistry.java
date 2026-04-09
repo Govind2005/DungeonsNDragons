@@ -50,7 +50,12 @@ public class SessionRegistry {
         StompHeaderAccessor sha = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = sha.getSessionId();
         String playerId = sessionToPlayer.remove(sessionId);
-        playerToSession.remove(playerId);
+        
+        // THE FIX: Prevent NullPointerException if an unauthenticated user disconnects
+        if (playerId != null) {
+            playerToSession.remove(playerId);
+        }
+        
         String matchId = sessionToMatch.remove(sessionId);
         if (matchId != null) {
             Set<String> sessions = matchToSessions.get(matchId);

@@ -239,7 +239,8 @@ public class LobbyService {
     }
 
     private void broadcastMatchStart(Room room, String matchId) {
-        redis.convertAndSend("broadcast:lobby", Map.of(
+        try{
+            redis.convertAndSend("broadcast:lobby", Map.of(
                 "type", "MATCH_START", "roomCode", room.getRoomCode(), "matchId", matchId,
                 "players", room.getPlayers().stream().map(p -> {
                     java.util.Map<String, Object> map = new java.util.HashMap<>();
@@ -251,6 +252,9 @@ public class LobbyService {
                     map.put("isReady", p.isReady());
                     return map;
                 }).toList()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast match start: {}", e.getMessage());
+        }
     }
 
     private String generateRoomCode() {
