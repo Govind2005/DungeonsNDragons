@@ -44,7 +44,7 @@ public class LobbyService {
         Room room = Room.builder()
                 .roomCode(roomCode).playersReady(0).status(Room.RoomStatus.WAITING).players(new ArrayList<>()).build();
         room.getPlayers().add(Room.RoomPlayer.builder()
-                .playerId(creatorPlayerId).username(creatorUsername).turnOrder(1).build());
+                .playerId(creatorPlayerId).username(creatorUsername).turnOrder(1).team(1).build());
         saveRoom(room);
         redis.opsForSet().add(AVAILABLE_ROOMS_KEY, roomCode);
         log.info("Room {} created by {}", roomCode, creatorUsername);
@@ -71,7 +71,8 @@ public class LobbyService {
             room.setStatus(Room.RoomStatus.STARTING);
             saveRoom(room);
             redis.opsForSet().remove(AVAILABLE_ROOMS_KEY, roomCode);
-            // initializeMatch(room);  removed this because now the frontend will call api for starting the match giving characters and then we call this method
+            // initializeMatch(room); removed this because now the frontend will call api
+            // for starting the match giving characters and then we call this method
         } else {
             saveRoom(room);
         }
@@ -109,6 +110,7 @@ public class LobbyService {
             broadcastRoomUpdate(room);
         }
     }
+
     public void selectCharacter(String roomCode, String playerId, String characterClass) {
         Room room = getRoom(roomCode);
         if (room == null)
@@ -117,7 +119,7 @@ public class LobbyService {
             throw new IllegalStateException("Not a member of this room");
 
         room.getPlayers().forEach(p -> {
-            if(p.getPlayerId().equals(playerId)) {
+            if (p.getPlayerId().equals(playerId)) {
                 p.setCharacterClass(characterClass);
             }
         });
@@ -143,40 +145,60 @@ public class LobbyService {
 
         long readyCount = room.getPlayers().stream().filter(Room.RoomPlayer::isReady).count();
         room.setPlayersReady((int) readyCount);
-        
+
+        // CHANGE 1: Move these outside the if/else block!
+        // This guarantees the frontend is notified that the 4th player clicked "Ready"
+        saveRoom(room);
+        broadcastRoomUpdate(room);
+
+        // CHANGE 2: Try to start the match AFTER broadcasting the UI update
         if (readyCount == MAX_PLAYERS) {
             initializeMatch(room);
-        } else {
-            saveRoom(room);
-            broadcastRoomUpdate(room);
         }
     }
-    
+
     private void initializeMatch(Room room) {
         try {
             List<Map<String, Object>> players = room.getPlayers().stream()
                     .map(p -> Map.<String, Object>of(
-                            "playerId", p.getPlayerId(), "team", p.getTeam(),
+                            "playerId", p.getPlayerId(),
+                            "team", p.getTeam(),
                             "turnOrder", p.getTurnOrder(),
                             "characterClass", p.getCharacterClass() != null ? p.getCharacterClass() : "BARBARIAN"))
                     .toList();
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+
             ResponseEntity<Map> resp = restTemplate.postForEntity(
                     vaultUrl + "/api/vault/matches",
-                    new HttpEntity<>(Map.of("players", players), headers), Map.class);
+                    new HttpEntity<>(Map.of("players", players), headers),
+                    Map.class);
 
             String matchId = (String) resp.getBody().get("matchId");
             room.setMatchId(matchId);
             room.setStatus(Room.RoomStatus.IN_GAME);
             saveRoom(room);
+
             log.info("Match {} initialized for room {}", matchId, room.getRoomCode());
             broadcastMatchStart(room, matchId);
+
         } catch (Exception e) {
             log.error("Failed to initialize match for room {}: {}", room.getRoomCode(), e.getMessage());
+
+            // 1. Reset the room status back to waiting
             room.setStatus(Room.RoomStatus.WAITING);
+
+            // 2. Un-ready everyone so they can try clicking ready again
+            room.getPlayers().forEach(p -> p.setReady(false));
+            room.setPlayersReady(0);
+
+            // 3. Save the room and put it back in the available pool
             saveRoom(room);
             redis.opsForSet().add(AVAILABLE_ROOMS_KEY, room.getRoomCode());
+
+            // 4. Tell the frontend about the reset so the screen updates
+            broadcastRoomUpdate(room);
         }
     }
 
