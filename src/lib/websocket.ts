@@ -55,6 +55,7 @@ export function connectWebSocket(
 
       // Subscribe to lobby updates
       if (onLobbyEvent) {
+        console.log('Subscribing to /topic/lobby');
         stompClient!.subscribe('/topic/lobby', (message) => {
           const event = JSON.parse(message.body);
           onLobbyEvent(event);
@@ -63,6 +64,7 @@ export function connectWebSocket(
 
       // Subscribe to error messages
       if (onError) {
+        console.log('Subscribing to /user/queue/errors');
         stompClient!.subscribe('/user/queue/errors', (message) => {
           const error = JSON.parse(message.body);
           onError(error);
@@ -71,7 +73,9 @@ export function connectWebSocket(
 
       // Subscribe to match start notification
       if (onMatchStart) {
+        console.log('Subscribing to /user/queue/match-start');
         stompClient!.subscribe('/user/queue/match-start', (message) => {
+          console.log('Received match-start message:', message.body);
           const event = JSON.parse(message.body);
           onMatchStart(event);
         });

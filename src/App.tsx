@@ -67,6 +67,14 @@ function AppContent() {
     }
   }, [user]);
 
+  // Navigate to battle screen if a match is detected
+  useEffect(() => {
+    if (matchId && (currentScreen.startsWith('lobby') || currentScreen === 'home')) {
+      console.log("Match detected in App, navigating to battle...");
+      setCurrentScreen('battle');
+    }
+  }, [matchId, currentScreen, setCurrentScreen]);
+
   const loadPlayerProfile = () => {
     if (!user) return;
 
