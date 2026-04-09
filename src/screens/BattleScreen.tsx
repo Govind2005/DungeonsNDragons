@@ -3,6 +3,19 @@ import { Swords, Shield, Zap } from 'lucide-react';
 import { CharacterClass, CHARACTERS, Ability } from '../lib/gameData';
 import { useAuth } from '../contexts/AuthContext';
 
+// ── Character head imports ───────────────────────────────────────────────────
+import barbarianHead from '../characters/barbarian_head.png';
+import knightHead    from '../characters/knight_head.png';
+import rangerHead    from '../characters/ranger_head.png';
+import wizardHead    from '../characters/wizard_head.png';
+
+const CHARACTER_HEADS: Record<CharacterClass, string> = {
+  barbarian: barbarianHead,
+  knight:    knightHead,
+  ranger:    rangerHead,
+  wizard:    wizardHead,
+};
+
 interface BattlePlayer {
   id: string;
   username: string;
@@ -107,40 +120,80 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
     }, 1500);
   };
 
-  // â”€â”€ Helpers â”€â”€
+  // ── Helpers ──
   // AbilityButton logic is now integrated into the main menu.
-
-  // Ported status bars to main return for Ben 10 style
 
   return (
     <div className="min-h-screen bg-[#070b12] flex flex-col relative overflow-hidden font-mono">
 
-      {/* Background: Cyberpunk City Vibe */}
-      <div className="absolute inset-0 bg-[#0b132b] pointer-events-none">
-        {/* Sky / Ambient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1c2e4a] via-[#101b33] to-[#0b132b]" />
+      {/* ═ THE ENVIRONMENT: Cyberpunk Arena ═ */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Sky gradient base */}
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 50% 30%, #1a2a6c 0%, #0b132b 50%, #060a18 100%)'
+        }}/>
 
-        {/* City skyline silhouettes using gradients */}
-        <div className="absolute bottom-[20%] left-0 right-0 h-[40%] bg-[linear-gradient(to_right,#000_10%,transparent_10%,transparent_15%,#000_15%,#000_25%,transparent_25%,transparent_30%,#000_30%,#000_45%,transparent_45%,transparent_50%,#000_50%,#000_65%,transparent_65%,transparent_75%,#000_75%,#000_85%,transparent_85%,transparent_90%,#000_90%)] opacity-30" style={{ backgroundSize: '200px 100%' }} />
-        <div className="absolute bottom-[20%] left-0 right-0 h-[30%] bg-[linear-gradient(to_right,#091024_5%,transparent_5%,transparent_12%,#091024_12%,#091024_20%,transparent_20%,transparent_28%,#091024_28%,#091024_38%,transparent_38%,transparent_48%,#091024_48%,#091024_60%,transparent_60%,transparent_70%,#091024_70%,#091024_80%,transparent_80%,transparent_88%,#091024_88%)] opacity-80" style={{ backgroundSize: '150px 100%' }} />
-        <div className="absolute bottom-[20%] left-0 right-0 h-[20%] bg-[linear-gradient(to_right,#152545_8%,transparent_8%,transparent_18%,#152545_18%,#152545_30%,transparent_30%,transparent_40%,#152545_40%,#152545_52%,transparent_52%,transparent_62%,#152545_62%,#152545_72%,transparent_72%,transparent_82%,#152545_82%,#152545_92%,transparent_92%,transparent_98%,#152545_98%)] opacity-90" style={{ backgroundSize: '100px 100%' }} />
+        {/* Team ambient glows */}
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 15% 60%, rgba(0,234,255,0.18) 0%, transparent 50%)'
+        }}/>
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 85% 60%, rgba(255,45,122,0.18) 0%, transparent 50%)'
+        }}/>
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 50% 100%, rgba(123,47,255,0.22) 0%, transparent 60%)'
+        }}/>
 
-        {/* Neon Windows / Lights */}
-        <div className="absolute bottom-[20%] left-0 right-0 h-[40%] bg-[radial-gradient(ellipse_at_center,_#38bdf8_0%,_transparent_2px)] opacity-40" style={{ backgroundSize: '15px 25px' }} />
-        <div className="absolute bottom-[20%] left-0 right-0 h-[30%] bg-[radial-gradient(ellipse_at_center,_#a78bfa_0%,_transparent_2px)] opacity-50" style={{ backgroundSize: '20px 30px', backgroundPosition: '10px 15px' }} />
-        <div className="absolute bottom-[20%] left-0 right-0 h-[20%] bg-[radial-gradient(ellipse_at_center,_#4ade80_0%,_transparent_2px)] opacity-60" style={{ backgroundSize: '12px 20px', backgroundPosition: '5px 5px' }} />
+        {/* Stars field */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1200 750" preserveAspectRatio="xMidYMid slice">
+          {([
+            [80,40,1],[180,20,1.5],[320,55,1],[450,15,1],[600,35,1.5],
+            [720,50,1],[850,22,1],[950,60,1.5],[1050,30,1],[1150,45,1],
+            [140,80,1],[400,90,1],[700,75,1],[1000,85,1],[250,120,1],
+            [560,100,1],[900,110,1],[350,65,1],[480,30,1.5],[780,48,1],
+            [1100,20,1.5],[50,90,1],[670,18,1],[1020,55,1]
+          ] as [number,number,number][]).map(([x,y,r], i) => (
+            <circle key={i} cx={x} cy={y} r={r} fill="#fff" opacity={0.35 + (i % 4) * 0.15}/>
+          ))}
+        </svg>
 
-        {/* Floor */}
-        <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-[#050a14] to-[#121f3a] border-t-2 border-[#1e3a5f]" />
+        {/* Moon */}
+        <div className="absolute" style={{ top: 38, right: 210, width: 58, height: 58 }}>
+          <div className="absolute inset-0 rounded-full" style={{
+            background: '#daeeff',
+            boxShadow: '0 0 50px 20px rgba(126,200,240,0.28), 0 0 100px 40px rgba(126,200,240,0.12)'
+          }}/>
+        </div>
+
+        {/* City Skyline Layers */}
+        <svg className="absolute w-full" style={{ bottom: '30%' }} viewBox="0 0 1200 340" preserveAspectRatio="xMidYMax meet">
+          <g fill="#0d1b35">
+            <rect x="0" y="160" width="35" height="180"/><rect x="38" y="110" width="20" height="230"/>
+            <rect x="60" y="140" width="40" height="200"/><rect x="103" y="90" width="25" height="250"/>
+            <rect x="1142" y="140" width="58" height="200"/>
+          </g>
+          <g fill="#0f2240">
+            <rect x="20" y="50" width="62" height="290"/><rect x="85" y="20" width="46" height="320"/>
+            <rect x="1060" y="40" width="66" height="300"/><rect x="915" y="5" width="43" height="335"/>
+          </g>
+          {/* Neon windows */}
+          <g fill="#00eaff" opacity="0.75">
+            <rect x="28" y="58" width="7" height="4"/><rect x="50" y="58" width="7" height="4"/>
+            <rect x="1067" y="48" width="7" height="4"/><rect x="1093" y="48" width="7" height="4"/>
+          </g>
+        </svg>
+
+        {/* Floor Horizon & Grid */}
+        <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-b from-[#0a1628] to-[#030609]" />
+        <div className="absolute left-0 right-0" style={{ bottom: '30%', height: 2, background: 'rgba(0,234,255,0.5)', boxShadow: '0 0 20px 5px rgba(0,234,255,0.35)' }} />
       </div>
 
-      {/* Floating damage numbers removed for Ben 10 style */}
+      {/* Vignette */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at center, transparent 38%, rgba(2,4,8,0.78) 100%)'
+      }}/>
 
-      {/* â”€â”€ Ambient Glare & Vibrancy Pass â”€â”€ */}
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-900/10 to-transparent pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-radial-gradient from-purple-900/10 to-transparent blur-3xl pointer-events-none" />
-
-      {/* â”€â”€ HUD: Slanted Top Status Bars (All 4 Players) â”€â”€ */}
+      {/* HUD: Slanted Top Status Bars (All 4 Players) */}
       <div className="absolute top-4 left-6 z-30 flex flex-col gap-4">
         {teamBlue.map((p) => {
           const isActive = p.id === currentPlayer?.id;
@@ -151,9 +204,9 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
               className={`flex items-start gap-3 transition-all duration-300 ${isActive ? 'scale-110 -translate-x-2' : isTarget ? 'scale-105 translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
               <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                <Zap className={`w-8 h-8 ${isActive ? 'text-cyan-400' : isTarget ? 'text-red-500' : 'text-slate-500'}`} />
+                <img src={CHARACTER_HEADS[p.characterClass]} className="w-full h-full object-cover scale-110" alt="" />
                 <div className="absolute top-0 right-0 w-6 h-6 bg-red-600 border border-slate-700 font-black text-[8px] flex items-center justify-center rotate-45 translate-x-1 -translate-y-1">
-                  <span className="-rotate-45">30</span>
+                  <span className="-rotate-45">{p.position}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5 pt-1">
@@ -186,9 +239,9 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
               className={`flex items-start gap-3 flex-row-reverse transition-all duration-300 ${isActive ? 'scale-110 translate-x-2' : isTarget ? 'scale-105 -translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
               <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                <Shield className={`w-8 h-8 ${isActive ? 'text-cyan-400' : isTarget ? 'text-red-500' : 'text-slate-500'}`} />
+                <img src={CHARACTER_HEADS[p.characterClass]} className="w-full h-full object-cover scale-110" alt="" />
                 <div className="absolute top-0 left-0 w-6 h-6 bg-cyan-600 border border-slate-700 font-black text-[8px] flex items-center justify-center -rotate-45 -translate-x-1 -translate-y-1">
-                  <span className="rotate-45">42</span>
+                  <span className="rotate-45">{p.position}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-0.5 pt-1">
@@ -211,15 +264,13 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
         })}
       </div>
 
-      {/* SIDE HUDs removed for cleaner Ben 10 style */}
-
       {/* ——— CENTER: Battle arena (1v1 Focused) ——— */}
-      <div className="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
+      <div className="flex-1 relative flex flex-col items-center justify-end overflow-hidden pb-4">
         {/* Arena floor glow */}
-        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-gradient-to-t from-slate-700/10 to-transparent blur-3xl opacity-50" />
+        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[900px] h-40 bg-gradient-to-t from-slate-700/10 to-transparent blur-3xl opacity-50" />
 
         {/* Portraits Container */}
-        <div className="flex items-center justify-center w-full max-w-4xl px-32 relative">
+        <div className="flex items-end justify-center w-full max-w-6xl px-16 relative gap-32">
 
           {/* Blue Team Representative (Left) */}
           {(() => {
@@ -231,15 +282,15 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             const isTarget = selectedTargets.includes(blueRep.id);
 
             return (
-              <div className={`relative transition-all duration-500 -translate-x-12 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
-                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-48 h-12 ${isActive ? 'bg-lime-400/20 shadow-[0_0_40px_rgba(163,230,53,0.3)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-32 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_15px_rgba(163,230,53,0.4)]' : isTarget ? 'drop-shadow-[0_0_10px_rgba(239,68,68,0.2)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
+              <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
+                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isActive ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
+                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
                 {isActive ? (
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)]">
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
                     PLAYER TURN
                   </div>
                 ) : isTarget ? (
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg]">
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] whitespace-nowrap">
                     TARGET
                   </div>
                 ) : null}
@@ -257,15 +308,20 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             const isTarget = selectedTargets.includes(redRep.id);
 
             return (
-              <div className={`relative transition-all duration-500 translate-x-12 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
-                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-48 h-12 ${isActive ? 'bg-red-600/20' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img src={CHARACTERS[redRep.characterClass].image} className={`h-32 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]' : isTarget ? 'drop-shadow-[0_0_10px_rgba(239,68,68,0.2)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
+              <div className={`relative transition-all duration-500 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
+                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isActive ? 'bg-red-600/25 shadow-[0_0_50px_rgba(239,68,68,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
+                <img 
+                  src={CHARACTERS[redRep.characterClass].image} 
+                  className={`h-80 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} 
+                  style={{ transform: 'scaleX(-1)' }}
+                  alt="" 
+                />
                 {isActive ? (
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg]">
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] whitespace-nowrap">
                     PLAYER TURN
                   </div>
                 ) : isTarget ? (
-                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg]">
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] whitespace-nowrap">
                     TARGET
                   </div>
                 ) : null}
@@ -274,6 +330,7 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
           })()}
         </div>
       </div>
+
 
       {/* â”€â”€ CINEMATIC ACTION OVERLAY â”€â”€ */}
       {cinematicAction && (
@@ -447,16 +504,20 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
           80%     { transform: translateX(4px); }
         }
         @keyframes cinematicLeft {
-          0% { transform: translateX(-100%) skewX(-15deg); opacity: 0; }
-          15% { transform: translateX(0) skewX(-15deg); opacity: 1; }
-          85% { transform: translateX(5%) skewX(-15deg); opacity: 1; }
-          100% { transform: translateX(100%) skewX(-15deg); opacity: 0; }
+          0%   { transform: translateX(-100%) skewX(-15deg); opacity: 0; }
+          15%  { transform: translateX(0)     skewX(-15deg); opacity: 1; }
+          85%  { transform: translateX(5%)    skewX(-15deg); opacity: 1; }
+          100% { transform: translateX(100%)  skewX(-15deg); opacity: 0; }
         }
         @keyframes cinematicRight {
-          0% { transform: translateX(100%) skewX(15deg); opacity: 0; }
-          15% { transform: translateX(0) skewX(15deg); opacity: 1; }
-          85% { transform: translateX(-5%) skewX(15deg); opacity: 1; }
+          0%   { transform: translateX(100%)  skewX(15deg); opacity: 0; }
+          15%  { transform: translateX(0)     skewX(15deg); opacity: 1; }
+          85%  { transform: translateX(-5%)   skewX(15deg); opacity: 1; }
           100% { transform: translateX(-100%) skewX(15deg); opacity: 0; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

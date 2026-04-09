@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { X, Zap, Heart, Droplets, Swords, Shield } from 'lucide-react';
 import { CharacterClass, CHARACTERS } from '../lib/gameData';
 
-// ── Import character images with correct filesystem casing ────────────────────
-import barbarianImg from '../characters/barbarian.png';
-import knightImg    from '../characters/knight.png';
-import rangerImg    from '../characters/ranger.png';
-import wizardImg    from '../characters/wizard.png';
+// ── Import new character images ──────────────────────────────────────────────
+import barbarianImg from '../characters/Barbarian.png';
+import knightImg    from '../characters/Knight.png';
+import rangerImg    from '../characters/Ranger.png';
+import wizardImg    from '../characters/Wizard.png';
 
 const CHARACTER_IMAGES: Record<CharacterClass, string> = {
   barbarian: barbarianImg,

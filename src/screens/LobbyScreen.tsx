@@ -3,6 +3,7 @@ import { Settings, LogOut, Swords, Wifi, Shield, Zap, Copy, Check } from 'lucide
 import { CharacterClass, CHARACTERS } from '../lib/gameData';
 import { useGame, GamePlayer } from '../contexts/GameContext';
 import { useAuth } from '../contexts/AuthContext';
+import { CharacterSelectModal } from '../components/CharacterSelectModal';
 
 const CLASS_ICONS: Record<CharacterClass, string> = {
   barbarian: '⚔️',
@@ -75,10 +76,15 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
   const [copied, setCopied] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(false);
   const [isCurrentPlayerReady, setIsCurrentPlayerReady] = useState(false);
+  const [pulseVs, setPulseVs] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (currentRoom) setPhase('lobby');
+    
+    // Pulse animation for VS divider
+    const interval = setInterval(() => setPulseVs((p) => !p), 1800);
+    return () => clearInterval(interval);
   }, [currentRoom]);
 
   // Navigate to battle when match starts or room status changes
@@ -190,7 +196,6 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
   }, [currentPlayer, selectedCharacter, setSelectedCharacter]);
 
   const renderPlayerCard = (player: GamePlayer | undefined, slotIndex: number) => {
-    const teamColor = slotIndex < 2 ? 'blue' : 'red';
     const isCurrentPlayer = player?.playerId === user?.id;
     const delay = `${slotIndex * 80}ms`;
 
@@ -226,6 +231,9 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
     const displayCharData = displayCharacter ? CHARACTERS[displayCharacter] : null;
     const displayClassTheme = displayCharacter ? CLASS_COLORS[displayCharacter] : null;
     const isReady = player.isReady;
+    
+    const teamColor = slotIndex < 2 ? 'blue' : 'red';
+    const shouldFlip = teamColor === 'red';
 
     return (
       <div
@@ -288,6 +296,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
                   src={displayCharData.image}
                   alt={displayCharData.name}
                   className={`h-48 w-auto object-contain relative z-10 transition-all duration-500 drop-shadow-2xl ${isHovered ? 'scale-110' : 'scale-100'}`}
+                  style={shouldFlip ? { transform: isHovered ? 'scaleX(-1) scale(1.10)' : 'scaleX(-1)' } : undefined}
                 />
                 <div className={`absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-black/60 border ${teamColor === 'blue' ? 'border-cyan-500/50' : 'border-red-500/50'} flex items-center justify-center text-base`}>
                   {CLASS_ICONS[displayCharacter!]}
@@ -312,6 +321,15 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
                 <div className="space-y-1.5 pt-1">
                   <STAT_BAR label="HP" value={displayCharData.maxHp} max={210} color={teamColor === 'blue' ? 'bg-cyan-400' : 'bg-red-400'} />
                   <STAT_BAR label="MANA" value={displayCharData.maxMana} max={130} color="bg-lime-400" />
+                </div>
+                <div className="flex gap-1 pt-1">
+                  {displayCharData.abilities.slice(0, 3).map((ab) => (
+                    <div
+                      key={ab.id}
+                      title={ab.name}
+                      className={`flex-1 h-1 rounded-full ${ab.type === 'attack' ? 'bg-red-500/60' : 'bg-blue-500/60'}`}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -347,15 +365,35 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
   if (phase !== 'lobby') {
     return (
       <div className="min-h-screen bg-[#080c14] relative overflow-hidden font-mono">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(0,255,150,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,150,1) 1px, transparent 1px)`,
-            backgroundSize: '40px 40px',
-          }}
-        />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[600px] h-[300px] bg-lime-400/5 blur-[100px] rounded-full pointer-events-none" />
+      {/* BACKGROUND LAYERS from LobbyScreen(1) */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 100% 60% at 50% 100%, rgba(10,20,50,0.95) 0%, rgba(4,8,15,1) 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 50% 80% at 5% 60%, rgba(0,80,180,0.14) 0%, transparent 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 50% 80% at 95% 60%, rgba(180,20,20,0.14) 0%, transparent 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `linear-gradient(rgba(0,255,100,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,100,0.035) 1px, transparent 1px)`,
+        backgroundSize: '40px 40px',
+      }} />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.018]" style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(255,255,255,1) 60px, rgba(255,255,255,1) 61px)',
+      }} />
+      <div className="absolute top-0 left-0 right-0 h-px pointer-events-none" style={{
+        background: 'linear-gradient(to right, transparent, rgba(163,230,53,0.7) 20%, rgba(163,230,53,1) 50%, rgba(163,230,53,0.7) 80%, transparent)',
+      }} />
+      <div className="absolute top-0 left-0 right-0 h-20 pointer-events-none" style={{
+        background: 'linear-gradient(to bottom, rgba(163,230,53,0.04), transparent)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 90% 90% at 50% 50%, transparent 50%, rgba(0,0,0,0.45) 100%)',
+      }} />
+      {['top-5 left-5 border-t border-l','top-5 right-5 border-t border-r','bottom-20 left-5 border-b border-l','bottom-20 right-5 border-b border-r'].map((cls, i) => (
+        <div key={i} className={`absolute w-8 h-8 border-slate-700/40 pointer-events-none ${cls}`} />
+      ))}
 
         <div className="relative z-10 flex flex-col min-h-screen">
           <header className="flex items-center justify-between px-8 py-4 border-b border-slate-800/80 bg-black/30 backdrop-blur-md">
@@ -530,17 +568,46 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
 
   // LOBBY PHASE - Character Selection
   return (
-    <div className="min-h-screen bg-[#080c14] relative overflow-hidden font-mono">
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0,255,150,1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,150,1) 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }}
-      />
-      <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[300px] bg-red-500/5 blur-[100px] rounded-full pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime-400/60 to-transparent" />
+    <div className="min-h-screen bg-[#04080f] relative overflow-hidden font-mono">
+      {/* BACKGROUND LAYERS from LobbyScreen(1) */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 100% 60% at 50% 100%, rgba(10,20,50,0.95) 0%, rgba(4,8,15,1) 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 50% 80% at 5% 60%, rgba(0,80,180,0.14) 0%, transparent 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 50% 80% at 95% 60%, rgba(180,20,20,0.14) 0%, transparent 60%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `linear-gradient(rgba(0,255,100,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,100,0.035) 1px, transparent 1px)`,
+        backgroundSize: '40px 40px',
+      }} />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.018]" style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(255,255,255,1) 60px, rgba(255,255,255,1) 61px)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 4% 80% at 50% 50%, rgba(255,255,255,0.025) 0%, transparent 100%)',
+      }} />
+      <div className="absolute top-0 left-0 right-0 h-px pointer-events-none" style={{
+        background: 'linear-gradient(to right, transparent, rgba(163,230,53,0.7) 20%, rgba(163,230,53,1) 50%, rgba(163,230,53,0.7) 80%, transparent)',
+      }} />
+      <div className="absolute top-0 left-0 right-0 h-20 pointer-events-none" style={{
+        background: 'linear-gradient(to bottom, rgba(163,230,53,0.04), transparent)',
+      }} />
+      <div className="absolute bottom-16 left-0 right-0 h-px pointer-events-none" style={{
+        background: 'linear-gradient(to right, transparent, rgba(96,165,250,0.3) 20%, rgba(255,255,255,0.15) 50%, rgba(248,113,113,0.3) 80%, transparent)',
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        top: 0, left: '20%', right: '20%', height: '200px',
+        background: 'radial-gradient(ellipse 100% 100% at 50% 0%, rgba(80,200,80,0.04) 0%, transparent 100%)',
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 90% 90% at 50% 50%, transparent 50%, rgba(0,0,0,0.45) 100%)',
+      }} />
+      {['top-5 left-5 border-t border-l','top-5 right-5 border-t border-r','bottom-20 left-5 border-b border-l','bottom-20 right-5 border-b border-r'].map((cls, i) => (
+        <div key={i} className={`absolute w-8 h-8 border-slate-700/40 pointer-events-none ${cls}`} />
+      ))}
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <header className="flex items-center justify-between px-8 py-4 border-b border-slate-800/80 bg-black/30 backdrop-blur-md">
@@ -582,33 +649,43 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-gradient-to-r from-cyan-500/50 to-transparent" />
-                <span className="text-cyan-400 font-black text-xs tracking-widest">TEAM BLUE</span>
+                <div className="bg-cyan-400 text-black font-black text-sm px-5 py-2 tracking-widest skew-x-[-6deg]">
+                  <span className="skew-x-[6deg] inline-block">TEAM BLUE</span>
+                </div>
                 <div className="h-px w-8 bg-cyan-500/30" />
               </div>
-              <div className="space-y-4">
-                {[0, 1].map((i) => renderPlayerCard(currentRoom?.players[i], i))}
+              <div className="grid grid-cols-2 gap-4">
+                {renderPlayerCard(currentRoom?.players[0], 0)}
+                {renderPlayerCard(currentRoom?.players[1], 1)}
               </div>
             </div>
 
-            {/* CENTER - Room code */}
+            {/* CENTER - VS divider */}
             <div className="flex flex-col items-center justify-center pt-12 gap-3 self-stretch">
               <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-700 to-transparent" />
               
+              <div className={`relative transition-all duration-700 ${pulseVs ? 'scale-110' : 'scale-100'}`}>
+                <div className="absolute inset-0 bg-white/5 blur-xl rounded-full scale-150" />
+                <div className="relative bg-black border-4 border-white/80 px-5 py-4 rotate-12 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                  <span className="text-white font-black text-3xl tracking-widest block -rotate-12">VS</span>
+                </div>
+              </div>
+
               {/* Room code for copy */}
-              <div className="bg-gradient-to-br from-lime-500/20 to-lime-600/10 border-2 border-lime-500/50 rounded-sm p-4 space-y-2">
-                <div className="text-[10px] text-slate-400 tracking-widest uppercase">Party Code</div>
+              <div className="mt-8 bg-gradient-to-br from-lime-500/10 to-transparent border border-lime-500/30 rounded-sm p-3 space-y-1 backdrop-blur-sm">
+                <div className="text-[8px] text-slate-400 tracking-widest uppercase text-center">Party Code</div>
                 <div className="flex items-center gap-2 justify-center">
-                  <div className="text-2xl font-black font-mono text-lime-400 tracking-[0.2em]">
+                  <div className="text-lg font-black font-mono text-lime-400 tracking-[0.2em]">
                     {currentRoom?.roomCode}
                   </div>
                   <button
                     onClick={copyRoomCode}
-                    className="p-2 bg-lime-500/20 hover:bg-lime-500/30 border border-lime-500/50 rounded-sm transition-all"
+                    className="p-1.5 bg-lime-500/20 hover:bg-lime-500/30 border border-lime-500/40 rounded-sm transition-all"
                   >
                     {copied ? (
-                      <Check className="w-4 h-4 text-lime-400" />
+                      <Check className="w-3 h-3 text-lime-400" />
                     ) : (
-                      <Copy className="w-4 h-4 text-slate-400 hover:text-lime-400" />
+                      <Copy className="w-3 h-3 text-slate-400 hover:text-lime-400" />
                     )}
                   </button>
                 </div>
@@ -621,11 +698,14 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-px w-8 bg-red-500/30" />
-                <span className="text-red-400 font-black text-xs tracking-widest">TEAM RED</span>
+                <div className="bg-red-500 text-black font-black text-sm px-5 py-2 tracking-widest skew-x-[6deg]">
+                  <span className="skew-x-[-6deg] inline-block">TEAM RED</span>
+                </div>
                 <div className="h-px flex-1 bg-gradient-to-l from-red-500/50 to-transparent" />
               </div>
-              <div className="space-y-4">
-                {[2, 3].map((i) => renderPlayerCard(currentRoom?.players[i], i))}
+              <div className="grid grid-cols-2 gap-4">
+                {renderPlayerCard(currentRoom?.players[2], 2)}
+                {renderPlayerCard(currentRoom?.players[3], 3)}
               </div>
             </div>
           </div>
@@ -715,43 +795,11 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
       </div>
 
       {/* Character Selection Modal */}
-      {showCharacterModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border-2 border-slate-700 rounded-sm max-w-md w-full space-y-6 p-8">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black tracking-widest text-lime-400">SELECT CLASS</h2>
-              <p className="text-slate-400 text-xs tracking-widest">Choose your character class</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {(['barbarian', 'knight', 'ranger', 'wizard'] as CharacterClass[]).map((classId) => {
-                const charData = CHARACTERS[classId];
-                return (
-                  <button
-                    key={classId}
-                    onClick={() => handleSelectCharacter(classId)}
-                    disabled={loading}
-                    className="relative overflow-hidden p-4 rounded-sm border-2 border-slate-700 bg-slate-800/60 hover:border-lime-400 hover:bg-lime-500/20 transition-all text-center space-y-3 disabled:opacity-50"
-                  >
-                    <div className="text-4xl">{CLASS_ICONS[classId]}</div>
-                    <div className="space-y-1">
-                      <div className="font-bold text-sm text-white uppercase tracking-wide">{charData.name}</div>
-                      <div className="text-[10px] text-slate-400">HP: {charData.maxHp} | MP: {charData.maxMana}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() => setShowCharacterModal(false)}
-              className="w-full px-4 py-2 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 rounded-sm transition-all text-xs font-bold tracking-widest"
-            >
-              CANCEL
-            </button>
-          </div>
-        </div>
-      )}
+      <CharacterSelectModal
+        isOpen={showCharacterModal}
+        onClose={() => setShowCharacterModal(false)}
+        onSelect={handleSelectCharacter}
+      />
     </div>
   );
 }
