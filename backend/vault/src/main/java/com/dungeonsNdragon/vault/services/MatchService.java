@@ -37,6 +37,7 @@ private final MatchPlayerRepositoryBase matchPlayerRepo;
 private final PlayerEffectRepositoryBase effectRepo;
 private final TurnLogRepositoryBase turnLogRepo;
 private final PlayerRepositoryBase playerRepo;
+private final ObjectMapper objectMapper;
 
 private static final Map<MatchPlayer.CharacterClass, int[]> CLASS_STATS = Map.of(
     MatchPlayer.CharacterClass.BARBARIAN, new int[]{150, 60},
@@ -77,9 +78,18 @@ public MatchStateResponse getMatchState(UUID matchId) {
     Match match = getMatchOrThrow(matchId);
     List<MatchPlayer> players = matchPlayerRepo.findByMatchIdOrderByTurnOrder(matchId);
     int turnNumber = turnLogRepo.findMaxTurnNumber(matchId).orElse(0);
-    List<MatchPlayer> alivePlayers = players.stream().filter(MatchPlayer::isAlive).toList();
-    int currentTurnOrder = alivePlayers.isEmpty() ? 0
-        : alivePlayers.get(turnNumber % alivePlayers.size()).getTurnOrder();
+    
+    // THE FIX: Instead of re-calculating turn order (which might differ from Referee)
+    // read it from the latest recorded state snapshot in the TurnLog.
+    int currentTurnOrder = 1;
+    Optional<TurnLog> lastTurn = turnLogRepo.findFirstByMatchIdOrderByTurnNumberDesc(matchId);
+    if (lastTurn.isPresent()) {
+        Map<String, Object> snapshot = objectMapper.convertValue(lastTurn.get().getStateSnapshot(), Map.class);
+        currentTurnOrder = (int) snapshot.getOrDefault("nextTurnOrder", 1);
+    } else if (match.getStatus() == Match.MatchStatus.IN_PROGRESS) {
+        // If match in progress but no turns yet, it's turn 1
+        currentTurnOrder = 1;
+    }
 
     List<MatchPlayerState> playerStates = players.stream()
         .map(mp -> MatchPlayerState.builder()
@@ -97,24 +107,26 @@ public MatchStateResponse getMatchState(UUID matchId) {
 
     return MatchStateResponse.builder()
         .matchId(matchId).status(match.getStatus().name())
-        .currentTurn(currentTurnOrder).turnNumber(turnNumber)
+        .currentTurnOrder(currentTurnOrder).turnNumber(turnNumber)
         .players(playerStates).winnerTeam(match.getWinnerTeam())
         .build();
 }
 
 @Transactional
 public MatchStateResponse applyTurnResult(ApplyTurnRequest req) {
-    if (req.getTargetPlayerId() != null && req.getDamageDealt() > 0) {
-        MatchPlayer target = matchPlayerRepo
-            .findByMatchIdAndPlayerId(req.getMatchId(), req.getTargetPlayerId()).orElseThrow();
-        int newHp = Math.max(0, target.getHp() - req.getDamageDealt());
-        matchPlayerRepo.updateStats(target.getId(), newHp, target.getMana(), newHp > 0);
-    }
-    if (req.getManaUsed() > 0) {
-        MatchPlayer actor = matchPlayerRepo
-            .findByMatchIdAndPlayerId(req.getMatchId(), req.getActorPlayerId()).orElseThrow();
-        int newMana = Math.max(0, actor.getMana() - req.getManaUsed());
-        matchPlayerRepo.updateStats(actor.getId(), actor.getHp(), newMana, actor.isAlive());
+    // THE FIX: Sync ALL players' stats (HP, Mana, Alive) from the Referee's snapshot
+    // This handles AOE, healing, and complex status effects that manual logic misses.
+    if (req.getStateSnapshot() != null) {
+        Map<String, Object> snapshot = objectMapper.convertValue(req.getStateSnapshot(), Map.class);
+        List<Map<String, Object>> snapshotPlayers = (List<Map<String, Object>>) snapshot.get("players");
+        if (snapshotPlayers != null) {
+            for (Map<String, Object> sp : snapshotPlayers) {
+                UUID pId = UUID.fromString(sp.get("playerId").toString());
+                MatchPlayer mp = matchPlayerRepo.findByMatchIdAndPlayerId(req.getMatchId(), pId).orElseThrow();
+                matchPlayerRepo.updateStats(mp.getId(), (int)sp.get("hp"), (int)sp.get("mana"), (boolean)sp.get("alive"));
+            }
+            log.info("Synced stats for {} players from turn snapshot in match {}", snapshotPlayers.size(), req.getMatchId());
+        }
     }
     if (req.getEffectsApplied() != null) {
         for (EffectApplication ea : req.getEffectsApplied()) {

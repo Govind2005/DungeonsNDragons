@@ -17,4 +17,6 @@ public interface TurnLogRepositoryBase extends JpaRepository<TurnLog, UUID> {
 
     @Query("SELECT MAX(t.turnNumber) FROM TurnLog t WHERE t.matchId = :matchId")
     Optional<Integer> findMaxTurnNumber(@Param("matchId") UUID matchId);
+
+    Optional<TurnLog> findFirstByMatchIdOrderByTurnNumberDesc(UUID matchId);
 }

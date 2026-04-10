@@ -289,29 +289,48 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   useEffect(() => {
     if (matchId && isConnected) {
       const subscription = subscribeToMatch(matchId, (message) => {
+        console.log('Match message received:', JSON.stringify(message, null, 2));
+        
         if (message.type === 'TURN_RESULT' && message.data) {
-          const matchState = message.data;
-          setMatchCurrentTurn(matchState.currentTurn);
+          const turnData = message.data;
           
-          if (matchState.players) {
-            setMatchPlayers((prev) => {
-              if (!prev) return null;
-              // Map backend MatchPlayerState back to frontend GamePlayer
-              return matchState.players.map((p: any) => ({
-                playerId: p.playerId,
-                username: p.username,
-                team: p.team,
-                turnOrder: p.turnOrder,
-                characterClass: p.characterClass ? p.characterClass.toLowerCase() : undefined,
-                isReady: true,
-                currentHp: p.hp,
-                maxHp: p.maxHp,
-                currentMana: p.mana,
-                maxMana: p.maxMana,
-                isAlive: p.alive,
-                effects: p.effects || []
-              }));
-            });
+          // The backend sends stateAfter.nextTurnOrder — use that for the current turn
+          const stateAfter = turnData.stateAfter;
+          if (stateAfter) {
+            // Update current turn from stateAfter.nextTurnOrder
+            console.log('Updating turn to nextTurnOrder:', stateAfter.nextTurnOrder);
+            setMatchCurrentTurn(stateAfter.nextTurnOrder);
+            
+            if (stateAfter.players && stateAfter.players.length > 0) {
+              setMatchPlayers((prev) => {
+                if (!prev) return null;
+                // Map backend PlayerSnapshot back to frontend GamePlayer
+                // Backend fields: playerId, username, team, turnOrder, hp, maxHp, mana, maxMana, alive, activeEffects
+                return stateAfter.players.map((p: any) => {
+                  // Preserve characterClass from previous state since backend snapshot doesn't include it
+                  const prevPlayer = prev.find((pp: GamePlayer) => pp.playerId === p.playerId);
+                  return {
+                    playerId: p.playerId,
+                    username: p.username,
+                    team: p.team,
+                    turnOrder: p.turnOrder,
+                    characterClass: prevPlayer?.characterClass,
+                    isReady: true,
+                    currentHp: p.hp,
+                    maxHp: p.maxHp,
+                    currentMana: p.mana,
+                    maxMana: p.maxMana,
+                    isAlive: p.alive !== undefined ? p.alive : true,
+                    activeEffects: p.activeEffects || [],
+                  };
+                });
+              });
+            }
+          }
+
+          // Handle game over
+          if (turnData.winnerTeam != null) {
+            console.log('Game over! Winner team:', turnData.winnerTeam);
           }
         }
       });

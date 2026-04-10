@@ -4,6 +4,9 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,6 +16,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class MatchState implements Serializable {
     private UUID matchId;
     private String status;
@@ -63,10 +67,12 @@ public class MatchState implements Serializable {
                 .anyMatch(e -> e.getEffectType().equals(effectType));
     }
 
+    @JsonIgnore
     public List<PlayerState> getAlivePlayers() {
         return players.stream().filter(PlayerState::isAlive).toList();
     }
 
+    @JsonIgnore
     public List<PlayerState> getAliveTeam(int team) {
         return players.stream().filter(p -> p.isAlive() && p.getTeam() == team).toList();
     }

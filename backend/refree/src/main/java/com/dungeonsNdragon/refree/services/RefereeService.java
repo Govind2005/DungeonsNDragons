@@ -102,7 +102,7 @@ private void persistTurnToVault(TurnResult result) {
         req.put("matchId", result.getMatchId());
         req.put("actorPlayerId", result.getActorPlayerId());
         req.put("actionType", result.getActionType().name());
-        req.put("targetPlayerId", result.getTargetPlayerId() != null ? result.getTargetPlayerId() : "");
+        req.put("targetPlayerId", result.getTargetPlayerId() != null ? result.getTargetPlayerId() : null);
         req.put("damageDealt", result.getDamageDealt());
         req.put("manaUsed", result.getManaUsed());
         req.put("effectsApplied", result.getEffectsApplied());

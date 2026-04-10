@@ -35,7 +35,7 @@ public class MatchDtos {
     public static class MatchStateResponse {
         private UUID matchId;
         private String status;
-        private int currentTurn;
+        private int currentTurnOrder;
         private int turnNumber;
         private List<MatchPlayerState> players;
         private Integer winnerTeam;

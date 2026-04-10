@@ -180,7 +180,9 @@ public class GameEngine {
         if (!actor.isAlive())
             return "Actor is dead";
         if (actor.getTurnOrder() != state.getCurrentTurnOrder())
-            return "Not your turn";
+            return "Not your turn (Server says: " + state.getCurrentTurnOrder() + ", You have: " + actor.getTurnOrder() + ")";
+        if (action.getCurrentTurnOrder() != null && action.getCurrentTurnOrder() != state.getCurrentTurnOrder())
+            return "Turn synchronization mismatch (State: " + state.getCurrentTurnOrder() + ", Requested: " + action.getCurrentTurnOrder() + ")";
         if (!"IN_PROGRESS".equals(state.getStatus()))
             return "Match is not in progress";
         if (state.hasEffect(actor, "BIND"))
