@@ -17,6 +17,10 @@ export interface GamePlayer {
   turnOrder: number;
   characterClass?: CharacterClass;
   isReady: boolean;
+  currentHp?: number;
+  maxHp?: number;
+  currentMana?: number;
+  maxMana?: number;
 }
 
 export interface RoomData {
@@ -99,7 +103,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     setConnectionError(error.reason || 'Unknown error');
   }, []);
 
-  const handleMatchStart = useCallback((event: MatchStartEvent) => {
+  const handleMatchStart = useCallback((event: any) => {
     console.log('Match started:', event);
     setMatchId(event.matchId);
     setMatchPlayers(event.players.map((p: any) => ({
@@ -107,10 +111,14 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
       username: p.username,
       team: p.team,
       turnOrder: p.turnOrder || 0,
-      characterClass: p.characterClass,
+      characterClass: p.characterClass ? (p.characterClass.toLowerCase() as CharacterClass) : undefined,
       isReady: p.isReady || false,
+      currentHp: p.currentHp,
+      maxHp: p.maxHp,
+      currentMana: p.currentMana,
+      maxMana: p.maxMana,
     })));
-    setMatchCurrentTurn(1); // Set initial turn
+    setMatchCurrentTurn(event.currentTurn || 1);
   }, []);
 
   const initializeWebSocket = useCallback(

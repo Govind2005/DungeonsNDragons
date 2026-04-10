@@ -264,6 +264,23 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
         })}
       </div>
 
+      {/* ——— TURN BANNER ——— */}
+      <div className="absolute top-[140px] left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 pointer-events-none">
+        {isMyTurn ? (
+          <div className="flex items-center gap-3 animate-pulse">
+            <div className="w-3 h-3 rounded-full bg-lime-400 shadow-[0_0_12px_rgba(163,230,53,0.8)]" />
+            <span className="text-lime-400 text-2xl font-black tracking-[0.5em] uppercase drop-shadow-[0_0_20px_rgba(163,230,53,0.5)]">YOUR TURN</span>
+            <div className="w-3 h-3 rounded-full bg-lime-400 shadow-[0_0_12px_rgba(163,230,53,0.8)]" />
+          </div>
+        ) : currentPlayer ? (
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-amber-400/60" />
+            <span className="text-amber-400/80 text-lg font-black tracking-[0.4em] uppercase">WAITING FOR {currentPlayer.username.toUpperCase()}</span>
+            <div className="w-2 h-2 rounded-full bg-amber-400/60" />
+          </div>
+        ) : null}
+      </div>
+
       {/* ——— CENTER: Battle arena (1v1 Focused) ——— */}
       <div className="flex-1 relative flex flex-col items-center justify-end overflow-hidden pb-4">
         {/* Arena floor glow */}
@@ -278,16 +295,16 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             const blueRep = myPlayer?.team === 'blue' ? myPlayer : target?.team === 'blue' ? target : teamBlue.find(p => p.currentHp > 0) || teamBlue[0];
             if (!blueRep) return null;
 
-            const isActive = myPlayer?.id === blueRep.id;
+            const isTurnPlayer = currentPlayer?.id === blueRep.id;
             const isTarget = selectedTargets.includes(blueRep.id);
 
             return (
-              <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
-                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isActive ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
-                {isActive ? (
+              <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
+                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
+                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
+                {isTurnPlayer ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
-                    PLAYER TURN
+                    {blueRep.id === user?.id ? '► YOUR TURN' : `${blueRep.username.toUpperCase()}'S TURN`}
                   </div>
                 ) : isTarget ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] whitespace-nowrap">
@@ -304,21 +321,21 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             const redRep = myPlayer?.team === 'red' ? myPlayer : target?.team === 'red' ? target : teamRed.find(p => p.currentHp > 0) || teamRed[0];
             if (!redRep) return null;
 
-            const isActive = myPlayer?.id === redRep.id;
+            const isTurnPlayer = currentPlayer?.id === redRep.id;
             const isTarget = selectedTargets.includes(redRep.id);
 
             return (
-              <div className={`relative transition-all duration-500 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isActive ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
-                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isActive ? 'bg-red-600/25 shadow-[0_0_50px_rgba(239,68,68,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
+              <div className={`relative transition-all duration-500 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
+                <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-red-600/25 shadow-[0_0_50px_rgba(239,68,68,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
                 <img 
                   src={CHARACTERS[redRep.characterClass].image} 
-                  className={`h-80 w-auto object-contain transition-all duration-300 ${isActive ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} 
+                  className={`h-80 w-auto object-contain transition-all duration-300 ${isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} 
                   style={{ transform: 'scaleX(-1)' }}
                   alt="" 
                 />
-                {isActive ? (
-                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] whitespace-nowrap">
-                    PLAYER TURN
+                {isTurnPlayer ? (
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
+                    {redRep.id === user?.id ? '► YOUR TURN' : `${redRep.username.toUpperCase()}'S TURN`}
                   </div>
                 ) : isTarget ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] whitespace-nowrap">
@@ -452,39 +469,47 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             </div>
           </div>
 
-          {/* Attack Button */}
-          <button
-            onClick={() => setSelectedTab(selectedTab === 'attack' ? null : 'attack')}
-            className={`
-              relative flex items-center justify-center gap-3 px-10 py-5 rounded-md transition-all duration-300 border-b-4 border-r-4 group
-              ${selectedTab === 'attack' ? 'bg-red-500 border-red-700 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] scale-[0.98]' : 'bg-[#e53935] border-[#b71c1c] text-white hover:bg-red-500 hover:border-[#c62828]'}
-            `}
-            style={{ clipPath: 'polygon(15% 0, 100% 0, 85% 100%, 0 100%)' }}
-          >
-            <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-              <Swords className="w-5 h-5 text-white" />
+          {isMyTurn ? (
+            <>
+              {/* Attack Button */}
+              <button
+                onClick={() => setSelectedTab(selectedTab === 'attack' ? null : 'attack')}
+                className={`
+                  relative flex items-center justify-center gap-3 px-10 py-5 rounded-md transition-all duration-300 border-b-4 border-r-4 group
+                  ${selectedTab === 'attack' ? 'bg-red-500 border-red-700 text-white shadow-[0_0_25px_rgba(239,68,68,0.4)] scale-[0.98]' : 'bg-[#e53935] border-[#b71c1c] text-white hover:bg-red-500 hover:border-[#c62828]'}
+                `}
+                style={{ clipPath: 'polygon(15% 0, 100% 0, 85% 100%, 0 100%)' }}
+              >
+                <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                  <Swords className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-black tracking-widest uppercase pe-4">ATTACK</span>
+              </button>
+
+              {/* Defense Button */}
+              <button
+                onClick={() => setSelectedTab(selectedTab === 'defense' ? null : 'defense')}
+                className={`
+                  relative flex items-center justify-center gap-3 px-10 py-5 rounded-md transition-all duration-300 border-b-4 border-r-4 group
+                  ${selectedTab === 'defense' ? 'bg-cyan-400 border-cyan-600 text-white shadow-[0_0_25px_rgba(34,211,238,0.4)] scale-[0.98]' : 'bg-[#00acc1] border-[#006064] text-white hover:bg-[#00bcd4] hover:border-[#00838f]'}
+                `}
+                style={{ clipPath: 'polygon(15% 0, 100% 0, 85% 100%, 0 100%)' }}
+              >
+                <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xl font-black tracking-widest uppercase pe-4">DEFENSE</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-4 py-3">
+              <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-amber-400/90 text-lg font-black tracking-[0.3em] uppercase">
+                WAITING FOR {currentPlayer?.username?.toUpperCase() || '...'}
+              </span>
+              <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
             </div>
-            <span className="text-xl font-black tracking-widest uppercase pe-4">ATTACK</span>
-          </button>
-
-          {/* Defense Button */}
-          <button
-            onClick={() => setSelectedTab(selectedTab === 'defense' ? null : 'defense')}
-            className={`
-              relative flex items-center justify-center gap-3 px-10 py-5 rounded-md transition-all duration-300 border-b-4 border-r-4 group
-              ${selectedTab === 'defense' ? 'bg-cyan-400 border-cyan-600 text-white shadow-[0_0_25px_rgba(34,211,238,0.4)] scale-[0.98]' : 'bg-[#00acc1] border-[#006064] text-white hover:bg-[#00bcd4] hover:border-[#00838f]'}
-            `}
-            style={{ clipPath: 'polygon(15% 0, 100% 0, 85% 100%, 0 100%)' }}
-          >
-            <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-black tracking-widest uppercase pe-4">DEFENSE</span>
-          </button>
-
-
-
-          {/* Control hints */}
+          )}
 
         </div>
       </div>

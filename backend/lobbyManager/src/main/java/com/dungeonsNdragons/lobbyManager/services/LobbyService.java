@@ -175,13 +175,14 @@ public class LobbyService {
                     new HttpEntity<>(Map.of("players", players), headers),
                     Map.class);
 
-            String matchId = (String) resp.getBody().get("matchId");
+            Map<String, Object> vaultResp = (Map<String, Object>) resp.getBody();
+            String matchId = (String) vaultResp.get("matchId");
             room.setMatchId(matchId);
             room.setStatus(Room.RoomStatus.IN_GAME);
             saveRoom(room);
 
             log.info("Match {} initialized for room {}", matchId, room.getRoomCode());
-            broadcastMatchStart(room, matchId);
+            broadcastMatchStart(room, matchId, vaultResp);
 
         } catch (Exception e) {
             log.error("Failed to initialize match for room {}: {}", room.getRoomCode(), e.getMessage());
@@ -238,10 +239,15 @@ public class LobbyService {
         }
     }
 
-    private void broadcastMatchStart(Room room, String matchId) {
-        try{
+    private void broadcastMatchStart(Room room, String matchId, Map<String, Object> vaultState) {
+        try {
+            List<Map<String, Object>> vaultPlayers = (List<Map<String, Object>>) vaultState.get("players");
+            
             redis.convertAndSend("broadcast:lobby", Map.of(
-                "type", "MATCH_START", "roomCode", room.getRoomCode(), "matchId", matchId,
+                "type", "MATCH_START", 
+                "roomCode", room.getRoomCode(), 
+                "matchId", matchId,
+                "currentTurn", vaultState.getOrDefault("currentTurn", 1),
                 "players", room.getPlayers().stream().map(p -> {
                     java.util.Map<String, Object> map = new java.util.HashMap<>();
                     map.put("playerId", p.getPlayerId());
@@ -250,6 +256,19 @@ public class LobbyService {
                     map.put("turnOrder", p.getTurnOrder());
                     map.put("characterClass", p.getCharacterClass());
                     map.put("isReady", p.isReady());
+                    
+                    // Add stats from vault
+                    if (vaultPlayers != null) {
+                        vaultPlayers.stream()
+                            .filter(vp -> vp.get("playerId").equals(p.getPlayerId()))
+                            .findFirst()
+                            .ifPresent(vp -> {
+                                map.put("currentHp", vp.get("hp"));
+                                map.put("maxHp", vp.get("maxHp"));
+                                map.put("currentMana", vp.get("mana"));
+                                map.put("maxMana", vp.get("maxMana"));
+                            });
+                    }
                     return map;
                 }).toList()));
         } catch (Exception e) {
