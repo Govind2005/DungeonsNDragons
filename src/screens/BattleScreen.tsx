@@ -5,15 +5,19 @@ import { useAuth } from '../contexts/AuthContext';
 
 // ── Character head imports ───────────────────────────────────────────────────
 import barbarianHead from '../characters/barbarian_head.png';
-import knightHead    from '../characters/knight_head.png';
-import rangerHead    from '../characters/ranger_head.png';
-import wizardHead    from '../characters/wizard_head.png';
+import knightHead from '../characters/knight_head.png';
+import rangerHead from '../characters/ranger_head.png';
+import wizardHead from '../characters/wizard_head.png';
+
+// strong. strongest among them all
+// strength. strengthiest of them all
+
 
 const CHARACTER_HEADS: Record<CharacterClass, string> = {
   barbarian: barbarianHead,
-  knight:    knightHead,
-  ranger:    rangerHead,
-  wizard:    wizardHead,
+  knight: knightHead,
+  ranger: rangerHead,
+  wizard: wizardHead,
 };
 
 interface BattlePlayer {
@@ -30,6 +34,7 @@ interface BattlePlayer {
   isBound: boolean;
   isWeakened: boolean;
   isInvisible: boolean;
+  activeEffects?: string[];
 }
 
 // Floating number type removed
@@ -39,15 +44,18 @@ interface BattlePlayer {
 interface BattleScreenProps {
   players: BattlePlayer[];
   currentTurn: number;
+  winnerTeam: number | null;
+  status: string | null;
   onAttack: (abilityId: string, targetIds: string[]) => void;
   onDefense: (abilityId: string) => void;
+  onExit?: () => void;
 }
 
 // Timer removed as per request
 
 // Style configurations moved or removed
 
-export function BattleScreen({ players, currentTurn, onAttack, onDefense }: BattleScreenProps) {
+export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttack, onDefense, onExit }: BattleScreenProps) {
   const [selectedTab, setSelectedTab] = useState<'attack' | 'defense' | null>(null);
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [shakingId, setShakingId] = useState<string | null>(null);
@@ -57,7 +65,7 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
   const currentPlayer = players.find(p => p.position === currentTurn);
   const myPlayer = players.find(p => p.id === user?.id);
   const isMyTurn = currentPlayer?.id === user?.id;
-  
+
   const teamBlue = players.filter(p => p.team === 'blue').sort((a: BattlePlayer, b: BattlePlayer) => a.position - b.position);
   const teamRed = players.filter(p => p.team === 'red').sort((a: BattlePlayer, b: BattlePlayer) => a.position - b.position);
   const abilities = myPlayer ? CHARACTERS[myPlayer.characterClass].abilities : [];
@@ -72,10 +80,10 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
 
   // Log listener removed
 
-  // Auto-targeting opponent if none selected
+  // Auto-targeting opponent if none selected (filter dead and invisible)
   useEffect(() => {
     if (selectedTargets.length === 0 && currentPlayer) {
-      const enemies = (currentPlayer.team === 'blue' ? teamRed : teamBlue).filter(p => p.currentHp > 0);
+      const enemies = (currentPlayer.team === 'blue' ? teamRed : teamBlue).filter(p => p.currentHp > 0 && !p.isInvisible);
       if (enemies.length > 0) setSelectedTargets([enemies[0].id]);
     }
   }, [currentTurn, currentPlayer, selectedTargets]);
@@ -98,14 +106,15 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
 
   const handleAbilityClick = (ability: Ability) => {
     if (!isMyTurn || !myPlayer || myPlayer.currentMana < ability.manaCost || cinematicAction) return;
-    
+
     let targetsToUse = selectedTargets;
     if (ability.type === 'attack') {
       if (ability.target === 'aoe') {
         const enemies = (currentPlayer?.team === 'blue' ? teamRed : teamBlue).filter(p => p.currentHp > 0);
         targetsToUse = enemies.map(p => p.id);
       } else {
-        if (selectedTargets.length !== 1) return;
+        const targetPlayer = players.find(p => p.id === selectedTargets[0]);
+        if (selectedTargets.length !== 1 || !targetPlayer || targetPlayer.currentHp <= 0 || targetPlayer.isInvisible) return;
       }
     }
 
@@ -131,29 +140,29 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
         {/* Sky gradient base */}
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at 50% 30%, #1a2a6c 0%, #0b132b 50%, #060a18 100%)'
-        }}/>
+        }} />
 
         {/* Team ambient glows */}
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at 15% 60%, rgba(0,234,255,0.18) 0%, transparent 50%)'
-        }}/>
+        }} />
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at 85% 60%, rgba(255,45,122,0.18) 0%, transparent 50%)'
-        }}/>
+        }} />
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at 50% 100%, rgba(123,47,255,0.22) 0%, transparent 60%)'
-        }}/>
+        }} />
 
         {/* Stars field */}
         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1200 750" preserveAspectRatio="xMidYMid slice">
           {([
-            [80,40,1],[180,20,1.5],[320,55,1],[450,15,1],[600,35,1.5],
-            [720,50,1],[850,22,1],[950,60,1.5],[1050,30,1],[1150,45,1],
-            [140,80,1],[400,90,1],[700,75,1],[1000,85,1],[250,120,1],
-            [560,100,1],[900,110,1],[350,65,1],[480,30,1.5],[780,48,1],
-            [1100,20,1.5],[50,90,1],[670,18,1],[1020,55,1]
-          ] as [number,number,number][]).map(([x,y,r], i) => (
-            <circle key={i} cx={x} cy={y} r={r} fill="#fff" opacity={0.35 + (i % 4) * 0.15}/>
+            [80, 40, 1], [180, 20, 1.5], [320, 55, 1], [450, 15, 1], [600, 35, 1.5],
+            [720, 50, 1], [850, 22, 1], [950, 60, 1.5], [1050, 30, 1], [1150, 45, 1],
+            [140, 80, 1], [400, 90, 1], [700, 75, 1], [1000, 85, 1], [250, 120, 1],
+            [560, 100, 1], [900, 110, 1], [350, 65, 1], [480, 30, 1.5], [780, 48, 1],
+            [1100, 20, 1.5], [50, 90, 1], [670, 18, 1], [1020, 55, 1]
+          ] as [number, number, number][]).map(([x, y, r], i) => (
+            <circle key={i} cx={x} cy={y} r={r} fill="#fff" opacity={0.35 + (i % 4) * 0.15} />
           ))}
         </svg>
 
@@ -162,24 +171,24 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
           <div className="absolute inset-0 rounded-full" style={{
             background: '#daeeff',
             boxShadow: '0 0 50px 20px rgba(126,200,240,0.28), 0 0 100px 40px rgba(126,200,240,0.12)'
-          }}/>
+          }} />
         </div>
 
         {/* City Skyline Layers */}
         <svg className="absolute w-full" style={{ bottom: '30%' }} viewBox="0 0 1200 340" preserveAspectRatio="xMidYMax meet">
           <g fill="#0d1b35">
-            <rect x="0" y="160" width="35" height="180"/><rect x="38" y="110" width="20" height="230"/>
-            <rect x="60" y="140" width="40" height="200"/><rect x="103" y="90" width="25" height="250"/>
-            <rect x="1142" y="140" width="58" height="200"/>
+            <rect x="0" y="160" width="35" height="180" /><rect x="38" y="110" width="20" height="230" />
+            <rect x="60" y="140" width="40" height="200" /><rect x="103" y="90" width="25" height="250" />
+            <rect x="1142" y="140" width="58" height="200" />
           </g>
           <g fill="#0f2240">
-            <rect x="20" y="50" width="62" height="290"/><rect x="85" y="20" width="46" height="320"/>
-            <rect x="1060" y="40" width="66" height="300"/><rect x="915" y="5" width="43" height="335"/>
+            <rect x="20" y="50" width="62" height="290" /><rect x="85" y="20" width="46" height="320" />
+            <rect x="1060" y="40" width="66" height="300" /><rect x="915" y="5" width="43" height="335" />
           </g>
           {/* Neon windows */}
           <g fill="#00eaff" opacity="0.75">
-            <rect x="28" y="58" width="7" height="4"/><rect x="50" y="58" width="7" height="4"/>
-            <rect x="1067" y="48" width="7" height="4"/><rect x="1093" y="48" width="7" height="4"/>
+            <rect x="28" y="58" width="7" height="4" /><rect x="50" y="58" width="7" height="4" />
+            <rect x="1067" y="48" width="7" height="4" /><rect x="1093" y="48" width="7" height="4" />
           </g>
         </svg>
 
@@ -191,30 +200,41 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
       {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: 'radial-gradient(ellipse at center, transparent 38%, rgba(2,4,8,0.78) 100%)'
-      }}/>
+      }} />
 
       {/* HUD: Slanted Top Status Bars (All 4 Players) */}
       <div className="absolute top-4 left-6 z-30 flex flex-col gap-4">
         {teamBlue.map((p) => {
           const isActive = p.id === currentPlayer?.id;
           const isTarget = selectedTargets.includes(p.id);
+          const isDead = p.currentHp <= 0;
           return (
             <div key={p.id}
-              onClick={() => p.currentHp > 0 && setSelectedTargets([p.id])}
-              className={`flex items-start gap-3 transition-all duration-300 ${isActive ? 'scale-110 -translate-x-2' : isTarget ? 'scale-105 translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
+              onClick={() => !isDead && !p.isInvisible && setSelectedTargets([p.id])}
+              className={`flex items-start gap-3 transition-all duration-300 ${isDead ? 'opacity-50 grayscale scale-90' : isActive ? 'scale-110 -translate-x-2' : isTarget ? 'scale-105 translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
               <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                <img src={CHARACTER_HEADS[p.characterClass]} className="w-full h-full object-cover scale-110" alt="" />
+                {p.isInvisible && <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-[2px] z-10 animate-pulse" />}
+                <img src={CHARACTER_HEADS[p.characterClass]} className={`w-full h-full object-cover scale-110 ${p.isInvisible ? 'opacity-40' : ''}`} alt="" />
+                {isDead && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                     <span className="text-[10px] font-black text-red-500 rotate-[-45deg] scale-125">DEAD</span>
+                  </div>
+                )}
                 <div className="absolute top-0 right-0 w-6 h-6 bg-red-600 border border-slate-700 font-black text-[8px] flex items-center justify-center rotate-45 translate-x-1 -translate-y-1">
                   <span className="-rotate-45">{p.position}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5 pt-1">
-                <div className="text-[9px] font-black text-white tracking-widest uppercase">{p.username}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[9px] font-black text-white tracking-widest uppercase">{p.username}</div>
+                  {p.isBound && <span className="text-[7px] bg-red-600 px-1 py-0.5 text-white animate-pulse">BOUND</span>}
+                  {p.isInvisible && <span className="text-[7px] bg-blue-600 px-1 py-0.5 text-white">HIDDEN</span>}
+                </div>
                 <div className={`relative w-56 h-6 bg-slate-900 border-r-4 ${isActive ? 'border-cyan-400/80' : 'border-red-600/80'} skew-x-[-15deg] overflow-hidden`}>
                   <div className={`h-full transition-all duration-700 ${isActive ? 'bg-gradient-to-r from-cyan-600 to-cyan-400' : 'bg-gradient-to-r from-red-600 to-orange-400'}`} style={{ width: `${(p.currentHp / p.maxHp) * 100}%` }} />
                   <div className="absolute inset-0 flex items-center justify-center skew-x-[15deg] font-black text-white text-[10px] tracking-widest">
-                    {p.currentHp}/{p.maxHp}
+                    {isDead ? 'ELIMINATED' : `${p.currentHp}/${p.maxHp}`}
                   </div>
                 </div>
                 <div className="relative w-48 h-4 bg-slate-900 border-r-4 border-lime-600/80 skew-x-[-15deg] overflow-hidden">
@@ -233,23 +253,34 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
         {teamRed.map((p) => {
           const isActive = p.id === currentPlayer?.id;
           const isTarget = selectedTargets.includes(p.id);
+          const isDead = p.currentHp <= 0;
           return (
             <div key={p.id}
-              onClick={() => p.currentHp > 0 && setSelectedTargets([p.id])}
-              className={`flex items-start gap-3 flex-row-reverse transition-all duration-300 ${isActive ? 'scale-110 translate-x-2' : isTarget ? 'scale-105 -translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
+              onClick={() => !isDead && !p.isInvisible && setSelectedTargets([p.id])}
+              className={`flex items-start gap-3 flex-row-reverse transition-all duration-300 ${isDead ? 'opacity-50 grayscale scale-90' : isActive ? 'scale-110 translate-x-2' : isTarget ? 'scale-105 -translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
               <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                <img src={CHARACTER_HEADS[p.characterClass]} className="w-full h-full object-cover scale-110" alt="" />
+                 {p.isInvisible && <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-[2px] z-10 animate-pulse" />}
+                <img src={CHARACTER_HEADS[p.characterClass]} className={`w-full h-full object-cover scale-110 ${p.isInvisible ? 'opacity-40' : ''}`} alt="" />
+                {isDead && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                     <span className="text-[10px] font-black text-red-500 rotate-[45deg] scale-125">DEAD</span>
+                  </div>
+                )}
                 <div className="absolute top-0 left-0 w-6 h-6 bg-cyan-600 border border-slate-700 font-black text-[8px] flex items-center justify-center -rotate-45 -translate-x-1 -translate-y-1">
                   <span className="rotate-45">{p.position}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-0.5 pt-1">
-                <div className="text-[9px] font-black text-white tracking-widest uppercase">{p.username}</div>
+                <div className="flex items-center gap-2 flex-row-reverse">
+                  <div className="text-[9px] font-black text-white tracking-widest uppercase">{p.username}</div>
+                  {p.isBound && <span className="text-[7px] bg-red-600 px-1 py-0.5 text-white animate-pulse">BOUND</span>}
+                  {p.isInvisible && <span className="text-[7px] bg-blue-600 px-1 py-0.5 text-white">HIDDEN</span>}
+                </div>
                 <div className={`relative w-56 h-6 bg-slate-900 border-l-4 ${isActive ? 'border-cyan-400/80' : 'border-red-600/80'} skew-x-[15deg] overflow-hidden`}>
                   <div className={`h-full transition-all duration-700 ${isActive ? 'bg-gradient-to-r from-cyan-400 to-cyan-600' : 'bg-gradient-to-r from-orange-400 to-red-600'}`} style={{ width: `${(p.currentHp / p.maxHp) * 100}%` }} />
                   <div className="absolute inset-0 flex items-center justify-center skew-x-[-15deg] font-black text-white text-[10px] tracking-widest">
-                    {p.currentHp}/{p.maxHp}
+                    {isDead ? 'ELIMINATED' : `${p.currentHp}/${p.maxHp}`}
                   </div>
                 </div>
                 <div className="relative w-48 h-4 bg-slate-900 border-l-4 border-lime-600/80 skew-x-[15deg] overflow-hidden">
@@ -301,7 +332,7 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             return (
               <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
                 <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} alt="" />
+                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${blueRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${blueRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`} alt="" />
                 {isTurnPlayer ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
                     {blueRep.id === user?.id ? '► YOUR TURN' : `${blueRep.username.toUpperCase()}'S TURN`}
@@ -327,11 +358,11 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
             return (
               <div className={`relative transition-all duration-500 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
                 <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-red-600/25 shadow-[0_0_50px_rgba(239,68,68,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img 
-                  src={CHARACTERS[redRep.characterClass].image} 
-                  className={`h-80 w-auto object-contain transition-all duration-300 ${isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'}`} 
+                <img
+                  src={CHARACTERS[redRep.characterClass].image}
+                  className={`h-80 w-auto object-contain transition-all duration-300 ${redRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${redRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`}
                   style={{ transform: 'scaleX(-1)' }}
-                  alt="" 
+                  alt=""
                 />
                 {isTurnPlayer ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
@@ -353,19 +384,19 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
       {cinematicAction && (
         <div className="absolute inset-0 z-50 flex items-center overflow-hidden pointer-events-none drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]">
           <div className={`absolute w-[120%] h-64 flex items-center px-32 relative
-            ${cinematicAction.isLeft ? 'bg-red-600 animate-[cinematicLeft_1.5s_ease-out_forwards] -left-[10%] border-y-8 border-red-500' 
-                                     : 'bg-red-600 animate-[cinematicRight_1.5s_ease-out_forwards] -right-[10%] border-y-8 border-red-500'}
+            ${cinematicAction.isLeft ? 'bg-red-600 animate-[cinematicLeft_1.5s_ease-out_forwards] -left-[10%] border-y-8 border-red-500'
+              : 'bg-red-600 animate-[cinematicRight_1.5s_ease-out_forwards] -right-[10%] border-y-8 border-red-500'}
             ${cinematicAction.ability.type === 'defense' ? '!bg-cyan-600 !border-cyan-400' : ''}
           `}>
             {/* Cinematic Character Image */}
-            <img 
-              src={CHARACTERS[cinematicAction.player.characterClass].image} 
+            <img
+              src={CHARACTERS[cinematicAction.player.characterClass].image}
               className={`h-[400px] w-auto object-contain drop-shadow-[0_0_20px_rgba(0,0,0,0.6)] absolute -bottom-10
                 ${cinematicAction.isLeft ? 'left-48' : 'right-48 scale-x-[-1]'}
-              `} 
+              `}
               alt=""
             />
-            
+
             {/* Cinematic Typography */}
             <div className={`absolute flex flex-col z-10 w-1/2
               ${cinematicAction.isLeft ? 'left-[450px] text-left' : 'right-[450px] text-right'}
@@ -373,10 +404,10 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
               <span className="text-4xl font-black text-yellow-400 tracking-[0.2em] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] italic uppercase">
                 {cinematicAction.ability.type === 'attack' ? 'ATTACK' : 'DEFENSE'}
               </span>
-              <span 
+              <span
                 className={`text-7xl font-black text-white tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] italic uppercase transform 
                    ${cinematicAction.isLeft ? '-skew-x-[10deg]' : 'skew-x-[10deg]'}
-                `} 
+                `}
                 style={{ WebkitTextStroke: `3px ${cinematicAction.ability.type === 'attack' ? '#991b1b' : '#0891b2'}` }}
               >
                 {cinematicAction.ability.name}
@@ -545,6 +576,31 @@ export function BattleScreen({ players, currentTurn, onAttack, onDefense }: Batt
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+      {/* ——— GAME OVER OVERLAY ——— */}
+      {(status === 'COMPLETED' || winnerTeam !== null) && (
+        <div className="absolute inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center p-8 animate-[fadeIn_0.5s_ease-out]">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-600/10 rounded-full blur-[120px]" />
+          
+          <div className="relative flex flex-col items-center gap-8">
+            <h1 className={`text-9xl font-black italic tracking-tighter ${winnerTeam === (players.find(p => p.id === user?.id)?.team === 'blue' ? 1 : 2) ? 'text-lime-400' : 'text-red-500'} skew-x-[-15deg] drop-shadow-[0_0_40px_currentColor]`}>
+              {winnerTeam === (players.find(p => p.id === user?.id)?.team === 'blue' ? 1 : 2) ? 'VICTORY' : 'DEFEAT'}
+            </h1>
+            
+            <div className="flex flex-col items-center gap-2">
+               <span className="text-white/60 text-sm font-black tracking-[0.6em] uppercase">Match Outcome</span>
+               <span className="text-white font-mono text-xs">{status === 'COMPLETED' ? 'Tournament Concluded' : 'Waiting for results...'}</span>
+            </div>
+
+            <button
+              onClick={onExit}
+              className="mt-12 group relative px-16 py-5 bg-white text-black font-black text-xl tracking-[0.4em] uppercase transition-all hover:scale-110 hover:shadow-[0_0_30px_#fff]"
+              style={{ clipPath: 'polygon(10% 0, 100% 0, 90% 100%, 0 100%)' }}
+            >
+              RETURN TO HOME
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

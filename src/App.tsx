@@ -15,7 +15,7 @@ import { CharacterClass, Ability } from './lib/gameData';
 function AppContent() {
   const { user, loading, token } = useAuth();
   const { currentScreen, setCurrentScreen } = useGameLogic(user?.id);
-  const { matchId, matchPlayers, matchCurrentTurn } = useGame();
+  const { matchId, matchPlayers, matchCurrentTurn, matchWinnerTeam, matchStatus } = useGame();
 
   const performAttack = async (abilityId: string, targets: string[]) => {
     if (!matchId || !user) return;
@@ -171,11 +171,15 @@ function AppContent() {
               isBound: effects.includes('BIND'),
               isWeakened: effects.includes('WEAKEN'),
               isInvisible: effects.includes('INVISIBLE'),
+              activeEffects: effects
             };
           })}
           currentTurn={matchCurrentTurn}
+          winnerTeam={matchWinnerTeam}
+          status={matchStatus}
           onAttack={performAttack}
           onDefense={performDefense}
+          onExit={() => setCurrentScreen('home')}
         />
       )}
 

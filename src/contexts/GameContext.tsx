@@ -54,6 +54,8 @@ interface GameContextType {
   matchId: string | null;
   matchPlayers: GamePlayer[] | null;
   matchCurrentTurn: number;
+  matchWinnerTeam: number | null;
+  matchStatus: string | null;
   setMatchId: (id: string) => void;
   setMatchPlayers: (players: GamePlayer[]) => void;
 }
@@ -71,6 +73,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const [matchId, setMatchId] = useState<string | null>(null);
   const [matchPlayers, setMatchPlayers] = useState<GamePlayer[] | null>(null);
   const [matchCurrentTurn, setMatchCurrentTurn] = useState<number>(0);
+  const [matchWinnerTeam, setMatchWinnerTeam] = useState<number | null>(null);
+  const [matchStatus, setMatchStatus] = useState<string | null>(null);
 
   const handleLobbyEvent = useCallback((event: LobbyEvent) => {
     console.log('Lobby event:', event);
@@ -283,6 +287,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     setMatchId(null);
     setMatchPlayers(null);
     setMatchCurrentTurn(0);
+    setMatchWinnerTeam(null);
+    setMatchStatus(null);
   }, []);
 
   // Handle Match Subscriptions
@@ -300,6 +306,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
             // Update current turn from stateAfter.nextTurnOrder
             console.log('Updating turn to nextTurnOrder:', stateAfter.nextTurnOrder);
             setMatchCurrentTurn(stateAfter.nextTurnOrder);
+            setMatchStatus(stateAfter.status);
+            setMatchWinnerTeam(stateAfter.winnerTeam);
             
             if (stateAfter.players && stateAfter.players.length > 0) {
               setMatchPlayers((prev) => {
@@ -372,6 +380,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     matchId,
     matchPlayers,
     matchCurrentTurn,
+    matchWinnerTeam,
+    matchStatus,
     setMatchId,
     setMatchPlayers,
   };

@@ -112,7 +112,7 @@ public class GameEngine {
                 manaUsed = MANA_BINDING_ARROW;
             }
             case VANISH -> {
-                addEffect(newActor, effectsApplied, "INVISIBLE", 1, 1);
+                addEffect(newActor, effectsApplied, "INVISIBLE", 1, 2); // 2 turns to survive end-of-turn tick
                 manaUsed = MANA_VANISH;
             }
             case ARCANE_BOLT -> {
@@ -141,6 +141,11 @@ public class GameEngine {
             }
         }
 
+        // Break invisibility on action (except when using Vanish again)
+        if (action.getActionType() != ActionType.VANISH) {
+            removeEffect(newActor, "INVISIBLE");
+        }
+
         boolean wasAoe = isAoe(action.getActionType());
         if (!wasAoe && damageDealt > 0 && newTarget != null
                 && action.getActionType() != ActionType.MANA_DRAIN) {
@@ -154,7 +159,7 @@ public class GameEngine {
         int newMana = Math.min(newActor.getMaxMana(), newActor.getMana() - manaUsed + MANA_REGEN_PER_TURN);
         newActor.setMana(Math.max(0, newMana));
 
-        tickEffects(newState);
+        tickPlayerEffects(newActor);
 
         int nextTurnOrder = computeNextTurnOrder(newState, newActor.getTurnOrder());
         newState.setCurrentTurnOrder(nextTurnOrder);
@@ -260,13 +265,11 @@ public class GameEngine {
             target.getEffects().removeIf(e -> e.getEffectType().equals(type));
     }
 
-    private void tickEffects(MatchState state) {
-        for (PlayerState p : state.getPlayers()) {
-            if (p.getEffects() == null)
-                continue;
-            p.getEffects().forEach(e -> e.setTurnsRemaining(e.getTurnsRemaining() - 1));
-            p.getEffects().removeIf(e -> e.getTurnsRemaining() <= 0);
-        }
+    private void tickPlayerEffects(PlayerState p) {
+        if (p.getEffects() == null)
+            return;
+        p.getEffects().forEach(e -> e.setTurnsRemaining(e.getTurnsRemaining() - 1));
+        p.getEffects().removeIf(e -> e.getTurnsRemaining() <= 0);
     }
 
     private boolean isInvisible(PlayerState p) {
@@ -282,17 +285,42 @@ public class GameEngine {
     }
 
     private int computeNextTurnOrder(MatchState state, int currentOrder) {
-        List<PlayerState> candidates = state.getPlayers().stream()
-                .filter(PlayerState::isAlive)
-                .filter(p -> !state.hasEffect(p, "BIND"))
+        int nextOrder = currentOrder;
+        int playerCount = state.getPlayers().size();
+
+        // Loop to find next alive player, skipping those who are Bound
+        for (int i = 0; i < playerCount; i++) {
+            nextOrder = findNextInSequence(state, nextOrder);
+            PlayerState nextPlayer = state.getPlayerByTurnOrder(nextOrder);
+
+            if (nextPlayer == null || !nextPlayer.isAlive()) {
+                continue;
+            }
+
+            if (state.hasEffect(nextPlayer, "BIND")) {
+                log.info("Player {} is bound, skipping turn.", nextPlayer.getUsername());
+                tickPlayerEffects(nextPlayer);
+                continue;
+            }
+
+            return nextOrder;
+        }
+
+        return nextOrder; // Fallback
+    }
+
+    private int findNextInSequence(MatchState state, int currentOrder) {
+        List<PlayerState> all = state.getPlayers().stream()
                 .sorted((a, b) -> Integer.compare(a.getTurnOrder(), b.getTurnOrder()))
                 .toList();
-        if (candidates.isEmpty())
+        if (all.isEmpty())
             return currentOrder;
-        for (PlayerState p : candidates)
+
+        for (PlayerState p : all) {
             if (p.getTurnOrder() > currentOrder)
                 return p.getTurnOrder();
-        return candidates.get(0).getTurnOrder();
+        }
+        return all.get(0).getTurnOrder();
     }
 
     private Integer checkWinCondition(MatchState state) {
