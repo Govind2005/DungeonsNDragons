@@ -16,6 +16,7 @@ public class ActionRequest {
     private UUID actorPlayerId;
     private ActionType actionType;
     private UUID targetPlayerId;
+    private Integer currentTurnOrder;
 
     public enum ActionType {
         // All classes
@@ -30,3 +31,4 @@ public class ActionRequest {
         ARCANE_BOLT, CHAIN_LIGHTNING, MANA_DRAIN, WEAKEN
     }
 }
+

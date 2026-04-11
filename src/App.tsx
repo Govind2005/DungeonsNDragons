@@ -31,6 +31,7 @@ function AppContent() {
           actorPlayerId: user.id,
           actionType: abilityId,
           targetPlayerId: targets.length > 0 ? targets[0] : null,
+          currentTurn: matchCurrentTurn,
         }),
       });
     } catch (err) {
@@ -51,6 +52,7 @@ function AppContent() {
           matchId,
           actorPlayerId: user.id,
           actionType: abilityId,
+          currentTurn: matchCurrentTurn,
         }),
       });
     } catch (err) {
@@ -153,21 +155,24 @@ function AppContent() {
 
       {currentScreen === 'battle' && matchId && matchPlayers && matchPlayers.length > 0 && (
         <BattleScreen
-          players={matchPlayers.map((p: any) => ({
-            id: p.playerId,
-            username: p.username,
-            team: p.team === 1 ? 'blue' : 'red',
-            characterClass: p.characterClass || 'barbarian',
-            currentHp: p.currentHp || 100,
-            maxHp: p.maxHp || 100,
-            currentMana: p.currentMana || 50,
-            maxMana: p.maxMana || 50,
-            position: p.turnOrder,
-            attackPowerBuff: 0,
-            isBound: false,
-            isWeakened: false,
-            isInvisible: false,
-          }))}
+          players={matchPlayers.map((p: any) => {
+            const effects: string[] = p.activeEffects || [];
+            return {
+              id: p.playerId,
+              username: p.username,
+              team: p.team === 1 ? 'blue' : 'red',
+              characterClass: p.characterClass || 'barbarian',
+              currentHp: p.currentHp || 100,
+              maxHp: p.maxHp || 100,
+              currentMana: p.currentMana || 50,
+              maxMana: p.maxMana || 50,
+              position: p.turnOrder,
+              attackPowerBuff: 0,
+              isBound: effects.includes('BIND'),
+              isWeakened: effects.includes('WEAKEN'),
+              isInvisible: effects.includes('INVISIBLE'),
+            };
+          })}
           currentTurn={matchCurrentTurn}
           onAttack={performAttack}
           onDefense={performDefense}

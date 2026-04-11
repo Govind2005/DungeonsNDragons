@@ -67,5 +67,8 @@ public class TurnResult {
         private int maxMana;
         private boolean alive;
         private List<String> activeEffects;
+        private int kills;
+        private int damageDealt;
+        private int healingDone;
     }
 }

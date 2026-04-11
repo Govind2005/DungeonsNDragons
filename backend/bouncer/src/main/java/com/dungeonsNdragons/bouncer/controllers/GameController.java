@@ -83,7 +83,11 @@ public class GameController {
             refereeReq.put("matchId", matchId);
             refereeReq.put("actorPlayerId", actorPlayerId);
             refereeReq.put("actionType", action.getActionType());
-            refereeReq.put("targetPlayerId", action.getTargetPlayerId());
+            refereeReq.put("targetPlayerId",
+                    action.getTargetPlayerId() != null && !action.getTargetPlayerId().isEmpty()
+                            ? action.getTargetPlayerId()
+                            : null);
+            refereeReq.put("currentTurnOrder", action.getCurrentTurn());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -111,6 +115,7 @@ public class GameController {
         private String actorPlayerId;
         private String actionType;
         private String targetPlayerId;
+        private Integer currentTurn;
     }
 
 }

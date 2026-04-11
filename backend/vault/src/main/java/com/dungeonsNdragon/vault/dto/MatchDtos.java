@@ -35,7 +35,7 @@ public class MatchDtos {
     public static class MatchStateResponse {
         private UUID matchId;
         private String status;
-        private int currentTurn;
+        private int currentTurnOrder;
         private int turnNumber;
         private List<MatchPlayerState> players;
         private Integer winnerTeam;
@@ -58,6 +58,9 @@ public class MatchDtos {
         private int maxMana;
         private boolean alive;
         private List<EffectState> effects;
+        private int kills = 0;
+        private int damageDealt = 0;
+        private int healingDone = 0;
     }
 
     @Data

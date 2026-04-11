@@ -31,12 +31,14 @@ public class XpCalculator {
     private int turnEfficiencyBonus;
 
     public int calculate(GameOverEvent.PlayerResult player, int totalTurns) {
-        int xp = player.isWon() ? baseWin : baseLoss;
-        xp += player.getKillsDealt() * killBonus;
-        if (player.isWon() && totalTurns < FAST_WIN_THRESHOLD) {
-            int speedBonus = (FAST_WIN_THRESHOLD - totalTurns) * turnEfficiencyBonus;
-            xp += speedBonus;
-            log.debug("Speed bonus: {} turns → +{} XP", totalTurns, speedBonus);
+        boolean isWinner = Boolean.TRUE.equals(player.getWon());
+        int xp = isWinner ? baseWin : baseLoss;
+
+        int kills = player.getKillsDealt() != null ? player.getKillsDealt() : 0;
+        xp += kills * killBonus;
+
+        if (isWinner && totalTurns < FAST_WIN_THRESHOLD) {
+            xp += (FAST_WIN_THRESHOLD - totalTurns) * turnEfficiencyBonus;
         }
         return xp;
     }

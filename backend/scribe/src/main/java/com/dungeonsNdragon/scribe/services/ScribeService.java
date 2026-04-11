@@ -43,7 +43,7 @@ public void processGameOver(GameOverEvent event) {
         List<GameOverEvent.PlayerResult> players = enrichWithMatchStats(event);
         for (GameOverEvent.PlayerResult player : players) {
             int xpGained = xpCalculator.calculate(player, event.getTotalTurns());
-            updatePlayerStats(player.getPlayerId(), player.isWon(), xpGained);
+            updatePlayerStats(player.getPlayerId(), player.getWon(), xpGained);
         }
         leaderboardRepo.refreshLeaderboard();
         log.info("Leaderboard refreshed after match {}", event.getMatchId());

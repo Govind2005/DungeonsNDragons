@@ -177,12 +177,20 @@ public class LobbyService {
 
             Map<String, Object> vaultResp = (Map<String, Object>) resp.getBody();
             String matchId = (String) vaultResp.get("matchId");
+            
+            // THE FIX: Transition the match to IN_PROGRESS in the Vault
+            // Otherwise, the Referee will reject actions as "Match not in progress"
+            ResponseEntity<Map> startResp = restTemplate.postForEntity(
+                    vaultUrl + "/api/vault/matches/" + matchId + "/start",
+                    null, Map.class);
+            Map<String, Object> finalVaultState = (Map<String, Object>) startResp.getBody();
+
             room.setMatchId(matchId);
             room.setStatus(Room.RoomStatus.IN_GAME);
             saveRoom(room);
 
-            log.info("Match {} initialized for room {}", matchId, room.getRoomCode());
-            broadcastMatchStart(room, matchId, vaultResp);
+            log.info("Match {} initialized and STARTED for room {}", matchId, room.getRoomCode());
+            broadcastMatchStart(room, matchId, finalVaultState);
 
         } catch (Exception e) {
             log.error("Failed to initialize match for room {}: {}", room.getRoomCode(), e.getMessage());
@@ -247,7 +255,7 @@ public class LobbyService {
                 "type", "MATCH_START", 
                 "roomCode", room.getRoomCode(), 
                 "matchId", matchId,
-                "currentTurn", vaultState.getOrDefault("currentTurn", 1),
+                "currentTurn", vaultState.getOrDefault("currentTurnOrder", 1),
                 "players", room.getPlayers().stream().map(p -> {
                     java.util.Map<String, Object> map = new java.util.HashMap<>();
                     map.put("playerId", p.getPlayerId());

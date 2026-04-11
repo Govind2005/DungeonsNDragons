@@ -10,8 +10,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class GameOverEvent {
     private UUID matchId;
-    private int winnerTeam;
-    private int totalTurns;
+
+    // Change these to Integer just to be safe
+    private Integer winnerTeam;
+    private Integer totalTurns;
+
     private List<PlayerResult> players;
 
     @Data
@@ -20,10 +23,12 @@ public class GameOverEvent {
     @AllArgsConstructor
     public static class PlayerResult {
         private UUID playerId;
-        private int team;
-        private boolean won;
-        private int killsDealt;
-        private int damageDealt;
-        private int healingDone;
+        private Integer team; // Changed to Integer
+        private Boolean won;  // Changed to Boolean
+
+        // CHANGED THESE TO INTEGER SO THEY CAN SAFELY BE NULL
+        private Integer killsDealt;
+        private Integer damageDealt;
+        private Integer healingDone;
     }
 }
