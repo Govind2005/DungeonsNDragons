@@ -43,28 +43,33 @@ public class GameBroadcaster {
     }
 
     public void sendToPlayer(String playerId, Object payload) {
-        messaging.convertAndSendToUser(playerId, "/queue/errors", payload);
+        String sessionId = sessionRegistry.getSessionForPlayer(playerId);
+        if (sessionId != null) {
+            SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+            headerAccessor.setSessionId(sessionId);
+            headerAccessor.setLeaveMutable(true);
+            messaging.convertAndSendToUser(playerId, "/queue/errors", payload, headerAccessor.getMessageHeaders());
+        }
     }
 
     public void notifyPlayersMatchStarted(Map<String, Object> payload) {
         List<Map<String, Object>> players = (List<Map<String, Object>>) payload.get("players");
-        
+
         for (Map<String, Object> player : players) {
             String playerId = (String) player.get("playerId");
             String sessionId = sessionRegistry.getSessionForPlayer(playerId);
-            
+
             // THE FIX: Explicitly target the user's session ID
             if (sessionId != null) {
                 SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
                 headerAccessor.setSessionId(sessionId);
                 headerAccessor.setLeaveMutable(true);
-                
+
                 messaging.convertAndSendToUser(
-                    playerId, 
-                    "/queue/match-start", 
-                    payload, 
-                    headerAccessor.getMessageHeaders()
-                );
+                        playerId,
+                        "/queue/match-start",
+                        payload,
+                        headerAccessor.getMessageHeaders());
                 log.info("Delivered MATCH_START to player {} via session {}", playerId, sessionId);
             } else {
                 log.warn("Cannot send MATCH_START - player {} has no active session", playerId);

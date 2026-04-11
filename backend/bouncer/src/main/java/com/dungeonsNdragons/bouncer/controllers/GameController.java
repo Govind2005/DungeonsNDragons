@@ -83,7 +83,7 @@ public class GameController {
             refereeReq.put("matchId", matchId);
             refereeReq.put("actorPlayerId", actorPlayerId);
             refereeReq.put("actionType", action.getActionType());
-            refereeReq.put("targetPlayerId", action.getTargetPlayerId() != null ? action.getTargetPlayerId() : "");
+            refereeReq.put("targetPlayerId", action.getTargetPlayerId());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
