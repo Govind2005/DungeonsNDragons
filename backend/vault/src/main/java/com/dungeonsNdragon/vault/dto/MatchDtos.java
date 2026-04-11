@@ -58,6 +58,9 @@ public class MatchDtos {
         private int maxMana;
         private boolean alive;
         private List<EffectState> effects;
+        private int kills = 0;
+        private int damageDealt = 0;
+        private int healingDone = 0;
     }
 
     @Data

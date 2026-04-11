@@ -72,6 +72,15 @@ public class MatchPlayer {
     @Builder.Default
     private List<PlayerEffect> effects = new ArrayList<>();
 
+    @Column(name = "kills")
+    private int kills = 0;
+
+    @Column(name = "damage_dealt")
+    private int damageDealt = 0;
+
+    @Column(name = "healing_done")
+    private int healingDone = 0;
+
     public enum CharacterClass {
         BARBARIAN, KNIGHT, RANGER, WIZARD
     }

@@ -31,3 +31,4 @@ public class ActionRequest {
         ARCANE_BOLT, CHAIN_LIGHTNING, MANA_DRAIN, WEAKEN
     }
 }
+

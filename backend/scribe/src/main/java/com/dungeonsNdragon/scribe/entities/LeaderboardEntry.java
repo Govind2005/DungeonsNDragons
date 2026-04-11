@@ -23,6 +23,6 @@ public class LeaderboardEntry {
     private int losses;
     private int xp;
 
-    @Column(name = "win_rate")
+    @Column(name = "win_rate", columnDefinition = "numeric")
     private double winRate;
 }

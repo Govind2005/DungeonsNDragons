@@ -16,7 +16,6 @@ import com.dungeonsNdragon.refree.entities.MatchState.PlayerState;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 
  * GameEngine — pure stateless computation. No I/O, no Spring dependencies
  * except @Component.
  * Takes MatchState + ActionRequest → returns TurnResult.
@@ -77,7 +76,7 @@ public class GameEngine {
             case WHIRLWIND -> {
                 for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
                     int d = resolveAttack(newActor, e, 0.6);
-                    applyDamage(e, d);
+                    applyDamage(newActor, e, d); // UPDATED to track kills
                     damageDealt += d;
                 }
                 manaUsed = MANA_WHIRLWIND;
@@ -123,7 +122,7 @@ public class GameEngine {
             case CHAIN_LIGHTNING -> {
                 for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
                     int d = resolveAttack(newActor, e, 0.5);
-                    applyDamage(e, d);
+                    applyDamage(newActor, e, d); // UPDATED to track kills
                     damageDealt += d;
                 }
                 manaUsed = MANA_CHAIN_LIGHTNING;
@@ -133,7 +132,7 @@ public class GameEngine {
                 newTarget.setMana(newTarget.getMana() - drained);
                 manaDrained = drained;
                 damageDealt = drained / 2;
-                applyDamage(newTarget, damageDealt);
+                applyDamage(newActor, newTarget, damageDealt); // UPDATED to track kills
                 manaUsed = MANA_MANA_DRAIN;
             }
             case WEAKEN -> {
@@ -145,8 +144,12 @@ public class GameEngine {
         boolean wasAoe = isAoe(action.getActionType());
         if (!wasAoe && damageDealt > 0 && newTarget != null
                 && action.getActionType() != ActionType.MANA_DRAIN) {
-            applyDamage(newTarget, damageDealt);
+            applyDamage(newActor, newTarget, damageDealt); // UPDATED to track kills
         }
+
+        // ADDED: Update the running totals for damage and healing
+        newActor.setDamageDealt(newActor.getDamageDealt() + damageDealt);
+        newActor.setHealingDone(newActor.getHealingDone() + healingDone);
 
         int newMana = Math.min(newActor.getMaxMana(), newActor.getMana() - manaUsed + MANA_REGEN_PER_TURN);
         newActor.setMana(Math.max(0, newMana));
@@ -228,14 +231,21 @@ public class GameEngine {
         return Math.max(1, (int) Math.round(raw));
     }
 
-    private void applyDamage(PlayerState target, int damage) {
+    // UPDATED: Now checks if the target dies so it can award a kill!
+    private void applyDamage(PlayerState actor, PlayerState target, int damage) {
+        boolean wasAlive = target.isAlive();
         int newHp = Math.max(0, target.getHp() - damage);
         target.setHp(newHp);
         target.setAlive(newHp > 0);
+
+        // If they were alive, but now they are dead, award the kill
+        if (wasAlive && !target.isAlive() && actor != null) {
+            actor.setKills(actor.getKills() + 1);
+        }
     }
 
     private void addEffect(PlayerState target, List<EffectApplied> log,
-            String type, int magnitude, int turns) {
+                           String type, int magnitude, int turns) {
         if (target.getEffects() == null)
             target.setEffects(new ArrayList<>());
         target.getEffects().removeIf(e -> e.getEffectType().equals(type));
@@ -342,8 +352,8 @@ public class GameEngine {
     private boolean isDamageAction(ActionType a) {
         return switch (a) {
             case BASIC_ATTACK, RAGE_STRIKE, WHIRLWIND, SHIELD_BASH,
-                    PRECISE_SHOT, BINDING_ARROW, ARCANE_BOLT, CHAIN_LIGHTNING, MANA_DRAIN ->
-                true;
+                 PRECISE_SHOT, BINDING_ARROW, ARCANE_BOLT, CHAIN_LIGHTNING, MANA_DRAIN ->
+                    true;
             default -> false;
         };
     }
@@ -361,14 +371,19 @@ public class GameEngine {
                 .map(p -> {
                     List<ActiveEffect> effectsCopy = p.getEffects() == null ? new ArrayList<>()
                             : new ArrayList<>(p.getEffects().stream()
-                                    .map(e -> ActiveEffect.builder().effectType(e.getEffectType())
-                                            .magnitude(e.getMagnitude()).turnsRemaining(e.getTurnsRemaining()).build())
-                                    .toList());
+                            .map(e -> ActiveEffect.builder().effectType(e.getEffectType())
+                                    .magnitude(e.getMagnitude()).turnsRemaining(e.getTurnsRemaining()).build())
+                            .toList());
                     return PlayerState.builder()
                             .matchPlayerId(p.getMatchPlayerId()).playerId(p.getPlayerId())
                             .username(p.getUsername()).team(p.getTeam()).turnOrder(p.getTurnOrder())
                             .characterClass(p.getCharacterClass()).hp(p.getHp()).maxHp(p.getMaxHp())
                             .mana(p.getMana()).maxMana(p.getMaxMana()).alive(p.isAlive()).effects(effectsCopy)
+
+                            // ADDED: Make sure these don't get erased between turns!
+                            .kills(p.getKills())
+                            .damageDealt(p.getDamageDealt())
+                            .healingDone(p.getHealingDone())
                             .build();
                 }).toList();
         return MatchState.builder().matchId(original.getMatchId()).status(original.getStatus())
@@ -385,6 +400,12 @@ public class GameEngine {
                                 .mana(p.getMana()).maxMana(p.getMaxMana()).alive(p.isAlive())
                                 .activeEffects(p.getEffects() == null ? List.of()
                                         : p.getEffects().stream().map(ActiveEffect::getEffectType).toList())
+
+                                // ADD THESE THREE LINES:
+                                .kills(p.getKills())
+                                .damageDealt(p.getDamageDealt())
+                                .healingDone(p.getHealingDone())
+
                                 .build())
                         .toList())
                 .nextTurnOrder(state.getCurrentTurnOrder()).turnNumber(state.getTurnNumber())

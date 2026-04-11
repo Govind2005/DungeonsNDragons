@@ -42,6 +42,9 @@ public class MatchState implements Serializable {
         private int maxMana;
         private boolean alive;
         private List<ActiveEffect> effects;
+        private int kills = 0;
+        private int damageDealt = 0;
+        private int healingDone = 0;
     }
 
     @Data
