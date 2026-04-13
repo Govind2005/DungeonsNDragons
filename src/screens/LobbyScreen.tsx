@@ -142,6 +142,7 @@ export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) =
   };
 
   const handleLeave = async () => {
+    await leaveRoom();
     setPhase('choose');
     setJoinCode('');
     setError(null);

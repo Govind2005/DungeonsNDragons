@@ -186,26 +186,26 @@ export function ResultScreen({ winnerTeam, players, currentUserId, onReturnHome,
           className={`text-center mb-10 transition-all duration-700 ${phase !== 'banner' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}
           style={{ transitionDelay: '100ms' }}
         >
-          <div className="relative inline-block mb-4">
-            <div className={`absolute -inset-1 blur-xl opacity-40 ${isBlue ? 'bg-cyan-400' : 'bg-red-400'}`} />
-            <div className={`relative px-12 py-4 skew-x-[-6deg] border-2 ${isBlue ? 'bg-cyan-500 border-cyan-400' : 'bg-red-500 border-red-400'}`}>
-              <div className="skew-x-[6deg] flex items-center gap-4">
-                <Trophy className="w-8 h-8 text-white" />
-                <span className="text-white font-black text-2xl tracking-widest">TEAM {winnerTeam.toUpperCase()}</span>
+          <div className="relative inline-block mb-2">
+            <div className={`absolute -inset-1 blur-xl opacity-30 ${isBlue ? 'bg-cyan-400' : 'bg-red-400'}`} />
+            <div className={`relative px-8 py-2 skew-x-[-6deg] border ${isBlue ? 'bg-cyan-500/20 border-cyan-400/50' : 'bg-red-500/20 border-red-400/50'} backdrop-blur-sm`}>
+              <div className="skew-x-[6deg] flex items-center gap-3">
+                <Trophy className={`w-5 h-5 ${isBlue ? 'text-cyan-400' : 'text-red-400'}`} />
+                <span className={`font-black text-sm tracking-[0.3em] uppercase ${isBlue ? 'text-cyan-400' : 'text-red-400'}`}>FINAL RESULTS</span>
               </div>
             </div>
           </div>
 
           <h1
-            className="text-[clamp(3rem,10vw,7rem)] font-black tracking-widest text-white leading-none"
+            className="text-[clamp(2.5rem,8vw,5.5rem)] font-black tracking-widest text-white leading-none uppercase italic"
             style={{ textShadow: isBlue
-              ? '0 0 60px rgba(96,165,250,0.5), 0 0 120px rgba(96,165,250,0.2)'
-              : '0 0 60px rgba(248,113,113,0.5), 0 0 120px rgba(248,113,113,0.2)' }}
+              ? '0 0 60px rgba(34,211,238,0.5), 0 0 120px rgba(34,211,238,0.2)'
+              : '0 0 60px rgba(239,68,68,0.5), 0 0 120px rgba(239,68,68,0.2)' }}
           >
-            VICTORY
+            TEAM {winnerTeam.toUpperCase()} WON
           </h1>
-          <div className={`h-1 mt-2 mx-auto w-2/3 rounded-full bg-gradient-to-r from-transparent ${isBlue ? 'via-cyan-400' : 'via-red-400'} to-transparent`} />
-          <div className="text-slate-500 text-xs tracking-[0.3em] mt-3 uppercase">Match Complete</div>
+          <div className={`h-1.5 mt-4 mx-auto w-full max-w-md rounded-full bg-gradient-to-r from-transparent ${isBlue ? 'via-cyan-400' : 'via-red-400'} to-transparent shadow-[0_0_20px_currentColor]`} />
+          <div className="text-slate-500 text-[10px] font-bold tracking-[0.5em] mt-4 uppercase opacity-60">Battle Sequence Concluded</div>
         </div>
 
         {/* â”€â”€ PLAYER CARDS â”€â”€ */}

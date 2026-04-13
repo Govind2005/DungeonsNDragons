@@ -121,11 +121,11 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
     const isLeft = myPlayer.team === 'blue';
     setCinematicAction({ ability, player: myPlayer, isLeft });
     setSelectedTab(null);
-    setSelectedTargets([]);
 
     setTimeout(() => {
       executeAction(ability, targetsToUse);
       setCinematicAction(null);
+      setSelectedTargets([]);
     }, 1500);
   };
 
@@ -323,7 +323,14 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
           {/* Blue Team Representative (Left) */}
           {(() => {
             const target = players.find(p => p.id === selectedTargets[0]);
-            const blueRep = myPlayer?.team === 'blue' ? myPlayer : target?.team === 'blue' ? target : teamBlue.find(p => p.currentHp > 0) || teamBlue[0];
+            // Logic for Team Blue representative:
+            // 1. If it's the turn of someone on Team Blue, they are the rep
+            // 2. Otherwise, if anyone on Team Blue is being targeted, they are the rep
+            // 3. Fallback to first living member
+            const blueRep = players.find(p => p.team === 'blue' && p.id === currentPlayer?.id) || 
+                            players.find(p => p.team === 'blue' && p.id === target?.id) ||
+                            teamBlue.find(p => p.currentHp > 0) || 
+                            teamBlue[0];
             if (!blueRep) return null;
 
             const isTurnPlayer = currentPlayer?.id === blueRep.id;
@@ -333,7 +340,11 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
               <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
                 <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
                 <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${blueRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${blueRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`} alt="" />
-                {isTurnPlayer ? (
+                {blueRep.currentHp <= 0 ? (
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] whitespace-nowrap z-30 shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                    ELIMINATED
+                  </div>
+                ) : isTurnPlayer ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
                     {blueRep.id === user?.id ? '► YOUR TURN' : `${blueRep.username.toUpperCase()}'S TURN`}
                   </div>
@@ -349,7 +360,14 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
           {/* Red Team Representative (Right) */}
           {(() => {
             const target = players.find(p => p.id === selectedTargets[0]);
-            const redRep = myPlayer?.team === 'red' ? myPlayer : target?.team === 'red' ? target : teamRed.find(p => p.currentHp > 0) || teamRed[0];
+            // Logic for Team Red representative:
+            // 1. If it's the turn of someone on Team Red, they are the rep
+            // 2. Otherwise, if anyone on Team Red is being targeted, they are the rep
+            // 3. Fallback to first living member
+            const redRep = players.find(p => p.team === 'red' && p.id === currentPlayer?.id) || 
+                           players.find(p => p.team === 'red' && p.id === target?.id) ||
+                           teamRed.find(p => p.currentHp > 0) || 
+                           teamRed[0];
             if (!redRep) return null;
 
             const isTurnPlayer = currentPlayer?.id === redRep.id;
@@ -364,7 +382,11 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
                   style={{ transform: 'scaleX(-1)' }}
                   alt=""
                 />
-                {isTurnPlayer ? (
+                {redRep.currentHp <= 0 ? (
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] shadow-[0_0_15px_rgba(220,38,38,0.5)] whitespace-nowrap z-30">
+                    ELIMINATED
+                  </div>
+                ) : isTurnPlayer ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-lime-400 text-black text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] shadow-[0_0_15px_rgba(163,230,53,0.5)] whitespace-nowrap">
                     {redRep.id === user?.id ? '► YOUR TURN' : `${redRep.username.toUpperCase()}'S TURN`}
                   </div>
@@ -582,8 +604,8 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-600/10 rounded-full blur-[120px]" />
           
           <div className="relative flex flex-col items-center gap-8">
-            <h1 className={`text-9xl font-black italic tracking-tighter ${winnerTeam === (players.find(p => p.id === user?.id)?.team === 'blue' ? 1 : 2) ? 'text-lime-400' : 'text-red-500'} skew-x-[-15deg] drop-shadow-[0_0_40px_currentColor]`}>
-              {winnerTeam === (players.find(p => p.id === user?.id)?.team === 'blue' ? 1 : 2) ? 'VICTORY' : 'DEFEAT'}
+            <h1 className={`text-7xl font-black italic tracking-tighter ${winnerTeam === 1 ? 'text-cyan-400' : 'text-red-500'} skew-x-[-15deg] drop-shadow-[0_0_40px_currentColor]`}>
+              TEAM {winnerTeam === 1 ? 'BLUE' : 'RED'} WON
             </h1>
             
             <div className="flex flex-col items-center gap-2">

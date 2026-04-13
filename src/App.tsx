@@ -15,7 +15,7 @@ import { CharacterClass, Ability } from './lib/gameData';
 function AppContent() {
   const { user, loading, token } = useAuth();
   const { currentScreen, setCurrentScreen } = useGameLogic(user?.id);
-  const { matchId, matchPlayers, matchCurrentTurn, matchWinnerTeam, matchStatus } = useGame();
+  const { matchId, matchPlayers, matchCurrentTurn, matchWinnerTeam, matchStatus, leaveRoom } = useGame();
 
   const performAttack = async (abilityId: string, targets: string[]) => {
     if (!matchId || !user) return;
@@ -105,6 +105,8 @@ function AppContent() {
   };
 
   const handleStartQuest = async () => {
+    // Clear any previous room/match state before starting anew
+    await leaveRoom();
     // Navigate to lobby join/create screen
     setCurrentScreen('lobby-join');
   };
@@ -162,10 +164,10 @@ function AppContent() {
               username: p.username,
               team: p.team === 1 ? 'blue' : 'red',
               characterClass: p.characterClass || 'barbarian',
-              currentHp: p.currentHp || 100,
-              maxHp: p.maxHp || 100,
-              currentMana: p.currentMana || 50,
-              maxMana: p.maxMana || 50,
+              currentHp: p.currentHp ?? 100,
+              maxHp: p.maxHp ?? 100,
+              currentMana: p.currentMana ?? 50,
+              maxMana: p.maxMana ?? 50,
               position: p.turnOrder,
               attackPowerBuff: 0,
               isBound: effects.includes('BIND'),
@@ -179,7 +181,10 @@ function AppContent() {
           status={matchStatus}
           onAttack={performAttack}
           onDefense={performDefense}
-          onExit={() => setCurrentScreen('home')}
+          onExit={async () => {
+            await leaveRoom();
+            setCurrentScreen('home');
+          }}
         />
       )}
 
@@ -221,7 +226,10 @@ function AppContent() {
             },
           ]}
           currentUserId={user.id}
-          onReturnHome={() => setCurrentScreen('home')}
+          onReturnHome={async () => {
+            await leaveRoom();
+            setCurrentScreen('home');
+          }}
           onPlayAgain={handleStartQuest}
         />
       )}
