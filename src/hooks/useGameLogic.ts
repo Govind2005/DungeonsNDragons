@@ -19,6 +19,8 @@ interface MatchPlayer {
   isBound: boolean;
   isWeakened: boolean;
   position: number;
+  damageDealt: number;
+  healingDone: number;
 }
 
 interface Match {
@@ -29,12 +31,27 @@ interface Match {
   winnerTeam: string | null;
 }
 
+export interface BattleResult {
+  matchId: string;
+  timestamp: number;
+  winnerTeam: 'blue' | 'red';
+  players: Array<{
+    username: string;
+    characterClass: CharacterClass;
+    team: 'blue' | 'red';
+    damage: number;
+    healing: number;
+    xpGained: number;
+  }>;
+}
+
 export function useGameLogic(userId: string | undefined) {
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('home');
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayer[]>([]);
 
   const [lastAction, setLastAction] = useState<any>(null);
+  const [lastBattleResult, setLastBattleResult] = useState<BattleResult | null>(null);
 
   const createMatch = async () => {
     if (!userId) return;
@@ -69,6 +86,8 @@ export function useGameLogic(userId: string | undefined) {
       isBound: false,
       isWeakened: false,
       position: index,
+      damageDealt: 0,
+      healingDone: 0,
     }));
 
     setMatchPlayers(players);
@@ -135,6 +154,7 @@ export function useGameLogic(userId: string | undefined) {
           } else {
             p.currentHp = Math.max(0, p.currentHp - damage);
             totalDamage += damage;
+            actor.damageDealt += damage;
           }
 
           // Ability specific effects
@@ -159,7 +179,9 @@ export function useGameLogic(userId: string | undefined) {
 
       // Ability self effects
       if (abilityId === 'shield_bash') {
-        actor.currentHp = Math.min(actor.maxHp, actor.currentHp + 25);
+        const healAmount = 25;
+        actor.currentHp = Math.min(actor.maxHp, actor.currentHp + healAmount);
+        actor.healingDone += healAmount;
         logBuffer += `${actor.username} gained a SHIELD! `;
       }
       if (abilityId === 'vanguard_charge') {
@@ -205,7 +227,9 @@ export function useGameLogic(userId: string | undefined) {
         logBuffer += `Attack Power up! `;
       }
       if (abilityId === 'divine_rest') {
-        p.currentHp = Math.min(p.maxHp, p.currentHp + 45);
+        const healAmount = 45;
+        p.currentHp = Math.min(p.maxHp, p.currentHp + healAmount);
+        p.healingDone += healAmount;
         logBuffer += `Healed self! `;
       }
       if (abilityId === 'shadow_meld') {
@@ -213,9 +237,15 @@ export function useGameLogic(userId: string | undefined) {
         logBuffer += `Became INVISIBLE! `;
       }
       if (abilityId === 'aura_of_life') {
+        let totalHeal = 0;
         newPlayers.forEach(player => {
-          if (player.team === p.team) player.currentHp = Math.min(player.maxHp, player.currentHp + 35);
+          if (player.team === p.team) {
+            const prevHp = player.currentHp;
+            player.currentHp = Math.min(player.maxHp, player.currentHp + 35);
+            totalHeal += player.currentHp - prevHp;
+          }
         });
+        p.healingDone += totalHeal;
         logBuffer += `Team HEALED! `;
       }
 
@@ -238,7 +268,28 @@ export function useGameLogic(userId: string | undefined) {
     const redTeamDead = matchPlayers.length > 0 && matchPlayers.filter(p => p.team === 'red').every(p => p.currentHp <= 0);
 
     if (blueTeamDead || redTeamDead) {
-      setCurrentMatch(prev => prev ? { ...prev, status: 'finished', winnerTeam: blueTeamDead ? 'red' : 'blue' } : null);
+      const winnerTeam = blueTeamDead ? 'red' : 'blue';
+      setCurrentMatch(prev => prev ? { ...prev, status: 'finished', winnerTeam } : null);
+      
+      // Calculate XP and create battle result
+      const baseXpWinner = 250;
+      const baseXpLoser = 100;
+      
+      const result: BattleResult = {
+        matchId: currentMatch?.id || '',
+        timestamp: Date.now(),
+        winnerTeam,
+        players: matchPlayers.map(p => ({
+          username: p.username,
+          characterClass: p.characterClass || 'knight',
+          team: p.team,
+          damage: p.damageDealt,
+          healing: p.healingDone,
+          xpGained: p.team === winnerTeam ? baseXpWinner : baseXpLoser,
+        })),
+      };
+      
+      setLastBattleResult(result);
       setCurrentScreen('result');
       return;
     }
@@ -287,6 +338,7 @@ export function useGameLogic(userId: string | undefined) {
     currentMatch,
     matchPlayers,
     lastAction,
+    lastBattleResult,
     createMatch,
     selectCharacterForPlayer,
     startGame,

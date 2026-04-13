@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
-import { useGameLogic } from './hooks/useGameLogic';
+import { useGameLogic, BattleResult } from './hooks/useGameLogic';
 // import { supabase } from './lib/supabase';
 
 import { HomeScreen } from './screens/HomeScreen';
@@ -22,6 +22,7 @@ function App() {
     currentMatch,
     matchPlayers,
     lastAction,
+    lastBattleResult,
     createMatch,
     selectCharacterForPlayer,
     startGame,
@@ -31,12 +32,21 @@ function App() {
 
   const [playerProfile, setPlayerProfile] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [battleLogs, setBattleLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       loadPlayerProfile();
+      loadBattleLogs();
     }
   }, [user]);
+
+  useEffect(() => {
+    // When a battle result is available, save it and add to battle logs
+    if (lastBattleResult) {
+      saveBattleLog(lastBattleResult);
+    }
+  }, [lastBattleResult]);
 
   const loadPlayerProfile = () => {
     if (!user) return;
@@ -65,12 +75,27 @@ function App() {
     setLeaderboard(formattedLeaderboard);
   };
 
+  const loadBattleLogs = () => {
+    const logs = JSON.parse(localStorage.getItem('battle_logs') || '[]');
+    setBattleLogs(logs);
+  };
+
+  const saveBattleLog = (result: BattleResult) => {
+    const logs = JSON.parse(localStorage.getItem('battle_logs') || '[]');
+    logs.unshift(result);
+    // Keep only last 100 battles
+    const recentLogs = logs.slice(0, 100);
+    localStorage.setItem('battle_logs', JSON.stringify(recentLogs));
+    setBattleLogs(recentLogs);
+  };
+
   const handleStartQuest = async () => {
     await createMatch();
   };
 
   const handleLeaderboards = async () => {
     await loadLeaderboard();
+    loadBattleLogs();
     setCurrentScreen('leaderboard');
   };
 
@@ -149,43 +174,17 @@ function App() {
         />
       )}
 
-      {currentScreen === 'result' && (
+      {currentScreen === 'result' && lastBattleResult && (
         <ResultScreen
-          winnerTeam="blue"
-          players={[
-            {
-              username: 'Player1',
-              characterClass: 'knight',
-              team: 'blue',
-              damage: 450,
-              healing: 120,
-              xpGained: 250,
-            },
-            {
-              username: 'Player2',
-              characterClass: 'barbarian',
-              team: 'red',
-              damage: 380,
-              healing: 0,
-              xpGained: 100,
-            },
-            {
-              username: 'Player3',
-              characterClass: 'ranger',
-              team: 'blue',
-              damage: 420,
-              healing: 0,
-              xpGained: 250,
-            },
-            {
-              username: 'Player4',
-              characterClass: 'wizard',
-              team: 'red',
-              damage: 340,
-              healing: 180,
-              xpGained: 100,
-            },
-          ]}
+          winnerTeam={lastBattleResult.winnerTeam}
+          players={lastBattleResult.players.map(p => ({
+            username: p.username,
+            characterClass: p.characterClass,
+            team: p.team,
+            damage: p.damage,
+            healing: p.healing,
+            xpGained: p.xpGained,
+          }))}
           currentUserId={user.id}
           onReturnHome={() => setCurrentScreen('home')}
           onPlayAgain={handleStartQuest}
@@ -194,7 +193,19 @@ function App() {
 
       {currentScreen === 'leaderboard' && (
         <LeaderboardScreen
-          leaderboard={leaderboard}
+          battleLogs={battleLogs.map(log => ({
+            id: log.matchId,
+            timestamp: log.timestamp,
+            winnerTeam: log.winnerTeam,
+            players: log.players.map((p: any) => ({
+              username: p.username,
+              team: p.team,
+              characterClass: p.characterClass,
+              damageDealt: p.damage,
+              healingDone: p.healing,
+              xpGained: p.xpGained,
+            })),
+          }))}
           currentUserId={user.id}
           onBack={() => setCurrentScreen('home')}
         />
