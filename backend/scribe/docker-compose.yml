@@ -1,0 +1,13 @@
+services:
+  scribe-postgres:
+    image: postgres:15-alpine
+    container_name: scribe-postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: scribe_db
+    ports:
+      - "5439:5432"
+    volumes:
+      - ./scribe-data:/var/lib/postgresql/data  # <-- THE LIFESAVER LINE
+    restart: unless-stopped

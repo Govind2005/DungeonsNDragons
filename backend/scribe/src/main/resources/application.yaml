@@ -1,0 +1,22 @@
+server:
+  port: 5003
+
+spring:
+  application:
+    name: scribe
+  datasource:
+    # Connects exactly to the Docker container we just spun up
+    url: jdbc:postgresql://localhost:5439/scribe_db
+    username: postgres
+    password: secret
+  jpa:
+    hibernate:
+      ddl-auto: update # Auto-creates the player tables
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# The Scribe still needs to talk to The Vault on 5001
+vault:
+  url: http://localhost:5001
