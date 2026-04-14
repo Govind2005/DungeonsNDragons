@@ -2,11 +2,11 @@ package com.dungeonsNdragon.refree.engine;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
 import com.dungeonsNdragon.refree.dto.ActionRequest;
-import com.dungeonsNdragon.refree.dto.ActionRequest.ActionType;
 import com.dungeonsNdragon.refree.dto.TurnResult;
 import com.dungeonsNdragon.refree.dto.TurnResult.EffectApplied;
 import com.dungeonsNdragon.refree.entities.MatchState;
@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * GameEngine — pure stateless computation. No I/O, no Spring dependencies.
- * Includes strict null-scrubbing to prevent Vault Enum crashes.
+ * Fully Updated to Flat-Damage / Flat-Defense Ruleset.
  */
 @Component
 @Slf4j
@@ -27,8 +27,15 @@ public class GameEngine {
 
     public TurnResult compute(MatchState state, ActionRequest action) {
         PlayerState actor = state.getPlayerByPlayerId(action.getActorPlayerId());
-        PlayerState target = action.getTargetPlayerId() != null
-                ? state.getPlayerByPlayerId(action.getTargetPlayerId())
+
+        // Smart Targeting for Heals & Self-Buffs
+        UUID effectiveTargetId = action.getTargetPlayerId();
+        if (effectiveTargetId == null && !isTargeted(action.getActionType().name())) {
+            effectiveTargetId = action.getActorPlayerId();
+        }
+
+        PlayerState target = effectiveTargetId != null
+                ? state.getPlayerByPlayerId(effectiveTargetId)
                 : null;
 
         String rejection = validate(state, actor, target, action);
@@ -42,7 +49,7 @@ public class GameEngine {
 
         MatchState newState = deepCopyState(state);
         PlayerState newActor = newState.getPlayerByPlayerId(action.getActorPlayerId());
-        PlayerState newTarget = target != null ? newState.getPlayerByPlayerId(action.getTargetPlayerId()) : null;
+        PlayerState newTarget = target != null ? newState.getPlayerByPlayerId(effectiveTargetId) : null;
 
         List<EffectApplied> effectsApplied = new ArrayList<>();
         int damageDealt = 0, healingDone = 0, manaUsed = 0, manaDrained = 0;
@@ -50,101 +57,135 @@ public class GameEngine {
         String moveName = action.getActionType().name();
 
         switch (moveName) {
-            case "BASIC_ATTACK" -> {
-                manaUsed = 0;
-                damageDealt = resolveAttack(newActor, newTarget, 1.0);
+            // ================== UNIVERSAL ==================
+            case "GUARD_AND_GATHER" -> {
+                manaUsed = -15; // Negative mana used = mana gained
+                addEffect(newActor, effectsApplied, "DEFENSE_BUFF", 20, 1);
             }
+
             // ================== BARBARIAN ==================
-            case "RAGE_STRIKE" -> {
-                manaUsed = 25;
-                damageDealt = resolveAttack(newActor, newTarget, 1.4);
+            case "SAVAGE_STRIKE" -> {
+                manaUsed = 10;
+                damageDealt = resolveAttack(newActor, newTarget, 18);
             }
             case "WHIRLWIND" -> {
-                manaUsed = 40;
+                manaUsed = 25;
                 for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
-                    int d = resolveAttack(newActor, e, 0.6);
+                    int d = resolveAttack(newActor, e, 14);
                     applyDamage(newActor, e, d);
                     damageDealt += d;
                 }
             }
-            case "BATTLE_CRY" -> {
+            case "EXECUTIONERS_SMASH" -> {
+                manaUsed = 45;
+                damageDealt = resolveAttack(newActor, newTarget, 40);
+            }
+            case "WAR_CRY" -> {
                 manaUsed = 20;
-                addEffect(newActor, effectsApplied, "ATTACK_BUFF", 25, 2);
+                stackEffect(newActor, effectsApplied, "ATTACK_BUFF", 3, 999);
+                addEffect(newActor, effectsApplied, "DEFENSE_BUFF", 15, 1);
             }
 
             // ================== KNIGHT ==================
+            case "VALIANT_STRIKE" -> {
+                manaUsed = 10;
+                damageDealt = resolveAttack(newActor, newTarget, 14);
+            }
             case "SHIELD_BASH" -> {
                 manaUsed = 20;
-                damageDealt = resolveAttack(newActor, newTarget, 0.8);
-                addEffect(newTarget, effectsApplied, "BIND", 1, 1);
+                damageDealt = resolveAttack(newActor, newTarget, 16);
+                addEffect(newActor, effectsApplied, "DEFENSE_BUFF", 20, 1);
             }
-            case "HEAL" -> {
-                manaUsed = 30;
-                PlayerState healTarget = newTarget != null ? newTarget : newActor;
-                int healAmt = Math.min(30, healTarget.getMaxHp() - healTarget.getHp());
-                healTarget.setHp(healTarget.getHp() + healAmt);
-                healingDone += healAmt;
-            }
-            case "GUARDIAN_AURA" -> {
-                manaUsed = 35;
+            case "VANGUARDS_CHARGE" -> {
+                manaUsed = 45;
+                damageDealt = resolveAttack(newActor, newTarget, 26);
                 for (PlayerState ally : newState.getAliveTeam(newActor.getTeam())) {
-                    addEffect(ally, effectsApplied, "DEFENSE_BUFF", 30, 2);
+                    stackEffect(ally, effectsApplied, "ATTACK_BUFF", 2, 999);
                 }
+            }
+            case "DIVINE_REST" -> {
+                manaUsed = 25;
+                int healAmt = Math.min(35, newActor.getMaxHp() - newActor.getHp());
+                newActor.setHp(newActor.getHp() + healAmt);
+                healingDone += healAmt;
             }
 
             // ================== RANGER ==================
             case "PRECISE_SHOT" -> {
-                manaUsed = 15;
-                damageDealt = resolveAttackIgnoreInvisible(newActor, newTarget, 1.0);
+                manaUsed = 10;
+                damageDealt = resolveAttack(newActor, newTarget, 16);
             }
-            case "BINDING_ARROW" -> {
-                manaUsed = 30;
-                damageDealt = resolveAttack(newActor, newTarget, 0.5);
+            case "PINNING_ARROW" -> {
+                manaUsed = 25;
+                damageDealt = resolveAttack(newActor, newTarget, 8);
                 addEffect(newTarget, effectsApplied, "BIND", 1, 1);
             }
-            case "VANISH" -> {
-                manaUsed = 20;
-                addEffect(newActor, effectsApplied, "INVISIBLE", 1, 2);
-            }
-
-            // ================== WIZARD ==================
-            case "ARCANE_BOLT" -> {
-                manaUsed = 30;
-                damageDealt = resolveAttack(newActor, newTarget, 1.3);
-            }
-            case "CHAIN_LIGHTNING" -> {
-                manaUsed = 45;
+            case "HAIL_OF_ARROWS" -> {
+                manaUsed = 40;
                 for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
-                    int d = resolveAttack(newActor, e, 0.5);
+                    int d = resolveAttack(newActor, e, 18);
                     applyDamage(newActor, e, d);
                     damageDealt += d;
                 }
             }
-            case "MANA_DRAIN" -> {
+            case "SHADOW_MELD" -> {
                 manaUsed = 20;
-                int drained = Math.min(30, newTarget.getMana());
-                newTarget.setMana(Math.max(0, newTarget.getMana() - drained));
-                manaDrained += drained;
-                damageDealt = drained / 2;
-                applyDamage(newActor, newTarget, damageDealt);
+                addEffect(newActor, effectsApplied, "SHADOW_MELD", 1, 999); // Removed on next hit
             }
-            case "WEAKEN" -> {
+
+            // ================== WIZARD ==================
+            case "ARCANE_BURST" -> {
+                manaUsed = 10;
+                for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
+                    int d = resolveAttack(newActor, e, 12);
+                    applyDamage(newActor, e, d);
+                    damageDealt += d;
+                }
+            }
+            case "MIND_SIPHON" -> {
                 manaUsed = 25;
-                addEffect(newTarget, effectsApplied, "ATTACK_DEBUFF", 30, 2);
+                for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
+                    int d = resolveAttack(newActor, e, 14);
+                    applyDamage(newActor, e, d);
+                    damageDealt += d;
+
+                    int drained = Math.min(10, e.getMana());
+                    e.setMana(Math.max(0, e.getMana() - drained));
+                    manaDrained += drained;
+                }
+            }
+            case "CATACLYSM" -> {
+                manaUsed = 50;
+                for (PlayerState e : newState.getAliveTeam(enemyTeam(newActor.getTeam()))) {
+                    int d = resolveAttack(newActor, e, 28);
+                    applyDamage(newActor, e, d);
+                    damageDealt += d;
+
+                    // Reduce Max Stats
+                    e.setMaxHp(Math.max(1, e.getMaxHp() - 10));
+                    e.setHp(Math.min(e.getHp(), e.getMaxHp()));
+                    e.setMaxMana(Math.max(1, e.getMaxMana() - 10));
+                    e.setMana(Math.min(e.getMana(), e.getMaxMana()));
+                    stackEffect(e, effectsApplied, "ATTACK_DEBUFF", 2, 999);
+                }
+            }
+            case "AURA_OF_LIFE" -> {
+                manaUsed = 30;
+                for (PlayerState ally : newState.getAliveTeam(newActor.getTeam())) {
+                    int healAmt = Math.min(25, ally.getMaxHp() - ally.getHp());
+                    ally.setHp(ally.getHp() + healAmt);
+                    healingDone += healAmt;
+                }
             }
 
             default -> {
-                damageDealt = resolveAttack(newActor, newTarget, 1.0);
+                damageDealt = 0;
                 manaUsed = 0;
             }
         }
 
-        if (!"VANISH".equals(moveName)) {
-            removeEffect(newActor, "INVISIBLE");
-        }
-
         boolean wasAoe = isAoe(moveName);
-        if (!wasAoe && damageDealt > 0 && newTarget != null && !"MANA_DRAIN".equals(moveName)) {
+        if (!wasAoe && damageDealt > 0 && newTarget != null) {
             applyDamage(newActor, newTarget, damageDealt);
         }
 
@@ -169,7 +210,7 @@ public class GameEngine {
         return TurnResult.builder()
                 .matchId(state.getMatchId()).turnNumber(state.getTurnNumber() + 1).valid(true)
                 .actorPlayerId(action.getActorPlayerId()).actionType(action.getActionType())
-                .targetPlayerId(action.getTargetPlayerId()).damageDealt(damageDealt)
+                .targetPlayerId(effectiveTargetId).damageDealt(damageDealt)
                 .healingDone(healingDone).manaUsed(manaUsed).manaDrained(manaDrained)
                 .effectsApplied(effectsApplied)
                 .targetDied(newTarget != null && !newTarget.isAlive())
@@ -198,38 +239,35 @@ public class GameEngine {
         return null;
     }
 
-    private int resolveAttack(PlayerState actor, PlayerState target, double multiplier) {
+    // THE NEW FLAT MATH SYSTEM
+    private int resolveAttack(PlayerState actor, PlayerState target, int baseMoveDamage) {
         if (target == null) return 0;
-        if (isInvisible(target)) {
-            removeEffect(target, "INVISIBLE");
+
+        // Handle Ranger's Shadow Meld Immunity
+        if (hasEffect(target, "SHADOW_MELD")) {
+            removeEffect(target, "SHADOW_MELD");
             return 0;
         }
-        return computeDamage(actor, target, multiplier);
+
+        int attackMod = getEffectMagnitude(actor, "ATTACK_BUFF") - getEffectMagnitude(actor, "ATTACK_DEBUFF");
+        int totalAttack = baseMoveDamage + attackMod;
+
+        int targetBaseDefense = getClassBaseDefense(target.getCharacterClass());
+        int defenseMod = getEffectMagnitude(target, "DEFENSE_BUFF");
+        int totalDefense = targetBaseDefense + defenseMod;
+
+        int finalDamage = totalAttack - totalDefense;
+        return Math.max(1, finalDamage); // Minimum 1 damage on a successful hit
     }
 
-    private int resolveAttackIgnoreInvisible(PlayerState actor, PlayerState target, double multiplier) {
-        if (target == null) return 0;
-        removeEffect(target, "INVISIBLE");
-        return computeDamage(actor, target, multiplier);
-    }
-
-    private int computeDamage(PlayerState actor, PlayerState target, double multiplier) {
-        double rawDamage = getClassBaseDamage(actor.getCharacterClass()) * multiplier;
-        double attackMod = getEffectMagnitude(actor, "ATTACK_BUFF") - getEffectMagnitude(actor, "ATTACK_DEBUFF");
-        double modifiedDamage = rawDamage * (1.0 + (attackMod / 100.0));
-        double defenseMod = getEffectMagnitude(target, "DEFENSE_BUFF");
-        double finalDamage = modifiedDamage / (1.0 + (defenseMod / 100.0));
-        return Math.max(1, (int) Math.round(finalDamage));
-    }
-
-    private int getClassBaseDamage(String cls) {
-        if (cls == null) return 20;
+    private int getClassBaseDefense(String cls) {
+        if (cls == null) return 0;
         return switch (cls.toUpperCase()) {
-            case "BARBARIAN" -> 35;
-            case "KNIGHT" -> 25;
-            case "RANGER" -> 28;
-            case "WIZARD" -> 38;
-            default -> 20;
+            case "BARBARIAN" -> 10;
+            case "KNIGHT" -> 16;
+            case "RANGER" -> 8;
+            case "WIZARD" -> 7;
+            default -> 0;
         };
     }
 
@@ -244,6 +282,7 @@ public class GameEngine {
         }
     }
 
+    // Standard temporary effects (overwrites previous)
     private void addEffect(PlayerState target, List<EffectApplied> log, String type, int magnitude, int turns) {
         if (target.getEffects() == null) target.setEffects(new ArrayList<>());
         target.getEffects().removeIf(e -> e.getEffectType() == null || e.getEffectType().equals(type));
@@ -253,9 +292,34 @@ public class GameEngine {
                 .effectType(type).targetPlayerId(target.getPlayerId()).magnitude(magnitude).turns(turns).build());
     }
 
+    // Stacking permanent effects (adds magnitude together)
+    private void stackEffect(PlayerState target, List<EffectApplied> log, String type, int magnitude, int turns) {
+        if (target.getEffects() == null) target.setEffects(new ArrayList<>());
+
+        int existingMag = 0;
+        for (ActiveEffect e : target.getEffects()) {
+            if (e.getEffectType() != null && e.getEffectType().equals(type)) {
+                existingMag = e.getMagnitude();
+            }
+        }
+
+        target.getEffects().removeIf(e -> e.getEffectType() == null || e.getEffectType().equals(type));
+        int newMag = existingMag + magnitude;
+
+        target.getEffects().add(ActiveEffect.builder()
+                .effectType(type).magnitude(newMag).turnsRemaining(turns).build());
+        log.add(EffectApplied.builder()
+                .effectType(type).targetPlayerId(target.getPlayerId()).magnitude(magnitude).turns(turns).build());
+    }
+
     private void removeEffect(PlayerState target, String type) {
         if (target.getEffects() != null)
             target.getEffects().removeIf(e -> e.getEffectType() != null && e.getEffectType().equals(type));
+    }
+
+    private boolean hasEffect(PlayerState target, String type) {
+        if (target.getEffects() == null) return false;
+        return target.getEffects().stream().anyMatch(e -> type.equals(e.getEffectType()));
     }
 
     private void tickPlayerEffects(PlayerState p) {
@@ -264,12 +328,7 @@ public class GameEngine {
         p.getEffects().removeIf(e -> e.getTurnsRemaining() <= 0);
     }
 
-    private boolean isInvisible(PlayerState p) {
-        return p.getEffects() != null && p.getEffects().stream()
-                .anyMatch(e -> "INVISIBLE".equals(e.getEffectType()));
-    }
-
-    private double getEffectMagnitude(PlayerState p, String type) {
+    private int getEffectMagnitude(PlayerState p, String type) {
         if (p.getEffects() == null) return 0;
         return p.getEffects().stream().filter(e -> type.equals(e.getEffectType()))
                 .mapToInt(ActiveEffect::getMagnitude).sum();
@@ -319,48 +378,48 @@ public class GameEngine {
     }
 
     private boolean isClassAllowed(String cls, String moveName) {
-        if ("BASIC_ATTACK".equals(moveName)) return true;
+        if ("GUARD_AND_GATHER".equals(moveName)) return true;
         if (cls == null) return false;
         return switch (cls.toUpperCase()) {
-            case "BARBARIAN" -> List.of("RAGE_STRIKE", "WHIRLWIND", "BATTLE_CRY").contains(moveName);
-            case "KNIGHT" -> List.of("SHIELD_BASH", "HEAL", "GUARDIAN_AURA").contains(moveName);
-            case "RANGER" -> List.of("PRECISE_SHOT", "BINDING_ARROW", "VANISH").contains(moveName);
-            case "WIZARD" -> List.of("ARCANE_BOLT", "CHAIN_LIGHTNING", "MANA_DRAIN", "WEAKEN").contains(moveName);
+            case "BARBARIAN" -> List.of("SAVAGE_STRIKE", "WHIRLWIND", "EXECUTIONERS_SMASH", "WAR_CRY").contains(moveName);
+            case "KNIGHT" -> List.of("VALIANT_STRIKE", "SHIELD_BASH", "VANGUARDS_CHARGE", "DIVINE_REST").contains(moveName);
+            case "RANGER" -> List.of("PRECISE_SHOT", "PINNING_ARROW", "HAIL_OF_ARROWS", "SHADOW_MELD").contains(moveName);
+            case "WIZARD" -> List.of("ARCANE_BURST", "MIND_SIPHON", "CATACLYSM", "AURA_OF_LIFE").contains(moveName);
             default -> false;
         };
     }
 
     private int getManaCost(String moveName) {
         return switch (moveName) {
-            case "BASIC_ATTACK" -> 0;
-            case "PRECISE_SHOT" -> 15;
-            case "BATTLE_CRY", "VANISH", "MANA_DRAIN" -> 20;
-            case "SHIELD_BASH", "WEAKEN" -> 25;
-            case "HEAL", "BINDING_ARROW", "ARCANE_BOLT" -> 30;
-            case "RAGE_STRIKE", "GUARDIAN_AURA" -> 35;
-            case "WHIRLWIND" -> 40;
-            case "CHAIN_LIGHTNING" -> 45;
+            case "GUARD_AND_GATHER" -> 0; // Gains mana, handled in logic
+            case "SAVAGE_STRIKE", "VALIANT_STRIKE", "PRECISE_SHOT", "ARCANE_BURST" -> 10;
+            case "SHIELD_BASH", "WAR_CRY", "SHADOW_MELD" -> 20;
+            case "WHIRLWIND", "DIVINE_REST", "PINNING_ARROW", "MIND_SIPHON" -> 25;
+            case "AURA_OF_LIFE" -> 30;
+            case "HAIL_OF_ARROWS" -> 40;
+            case "EXECUTIONERS_SMASH", "VANGUARDS_CHARGE" -> 45;
+            case "CATACLYSM" -> 50;
             default -> 0;
         };
     }
 
     private boolean isTargeted(String a) {
         return switch (a) {
-            case "WHIRLWIND", "BATTLE_CRY", "GUARDIAN_AURA", "VANISH", "CHAIN_LIGHTNING" -> false;
+            case "GUARD_AND_GATHER", "WHIRLWIND", "WAR_CRY", "DIVINE_REST", "HAIL_OF_ARROWS", "SHADOW_MELD", "ARCANE_BURST", "MIND_SIPHON", "CATACLYSM", "AURA_OF_LIFE" -> false;
             default -> true;
         };
     }
 
     private boolean isDamageAction(String a) {
         return switch (a) {
-            case "BASIC_ATTACK", "RAGE_STRIKE", "WHIRLWIND", "SHIELD_BASH", "PRECISE_SHOT", "BINDING_ARROW", "ARCANE_BOLT", "CHAIN_LIGHTNING", "MANA_DRAIN" -> true;
+            case "SAVAGE_STRIKE", "WHIRLWIND", "EXECUTIONERS_SMASH", "VALIANT_STRIKE", "SHIELD_BASH", "VANGUARDS_CHARGE", "PRECISE_SHOT", "PINNING_ARROW", "HAIL_OF_ARROWS", "ARCANE_BURST", "MIND_SIPHON", "CATACLYSM" -> true;
             default -> false;
         };
     }
 
     private boolean isAoe(String a) {
         return switch (a) {
-            case "WHIRLWIND", "GUARDIAN_AURA", "CHAIN_LIGHTNING" -> true;
+            case "WHIRLWIND", "HAIL_OF_ARROWS", "ARCANE_BURST", "MIND_SIPHON", "CATACLYSM" -> true;
             default -> false;
         };
     }
@@ -372,7 +431,6 @@ public class GameEngine {
     private MatchState deepCopyState(MatchState original) {
         List<PlayerState> playersCopy = original.getPlayers().stream()
                 .map(p -> {
-                    // FIX: Filter out Ghost Effects from the Cache during Deep Copy
                     List<ActiveEffect> effectsCopy = p.getEffects() == null ? new ArrayList<>()
                             : new ArrayList<>(p.getEffects().stream()
                             .filter(e -> e.getEffectType() != null)
@@ -402,7 +460,6 @@ public class GameEngine {
                                 .turnOrder(p.getTurnOrder()).hp(p.getHp()).maxHp(p.getMaxHp())
                                 .mana(p.getMana()).maxMana(p.getMaxMana()).alive(p.isAlive())
                                 .characterClass(p.getCharacterClass() != null ? p.getCharacterClass() : "BARBARIAN")
-                                // FIX: Scrub Nulls from Active Effects Array to prevent Enum crash
                                 .activeEffects(p.getEffects() == null ? List.of()
                                         : p.getEffects().stream()
                                         .map(ActiveEffect::getEffectType)

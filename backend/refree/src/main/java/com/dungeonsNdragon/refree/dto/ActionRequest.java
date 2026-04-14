@@ -19,28 +19,31 @@ public class ActionRequest {
     private Integer currentTurnOrder;
 
     public enum ActionType {
-        // Universal Base Attack
-        BASIC_ATTACK,
+        // Universal Ability
+        GUARD_AND_GATHER,
 
         // Barbarian Abilities
-        RAGE_STRIKE,
+        SAVAGE_STRIKE,
         WHIRLWIND,
-        BATTLE_CRY,
+        EXECUTIONERS_SMASH,
+        WAR_CRY,
 
         // Knight Abilities
+        VALIANT_STRIKE,
         SHIELD_BASH,
-        HEAL,
-        GUARDIAN_AURA,
+        VANGUARDS_CHARGE,
+        DIVINE_REST,
 
         // Ranger Abilities
         PRECISE_SHOT,
-        BINDING_ARROW,
-        VANISH,
+        PINNING_ARROW,
+        HAIL_OF_ARROWS,
+        SHADOW_MELD,
 
         // Wizard Abilities
-        ARCANE_BOLT,
-        CHAIN_LIGHTNING,
-        MANA_DRAIN,
-        WEAKEN
+        ARCANE_BURST,
+        MIND_SIPHON,
+        CATACLYSM,
+        AURA_OF_LIFE
     }
 }
