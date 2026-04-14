@@ -66,6 +66,7 @@ public class TurnResult {
         private int mana;
         private int maxMana;
         private boolean alive;
+        private String characterClass;
         private List<String> activeEffects;
         private int kills;
         private int damageDealt;

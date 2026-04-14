@@ -35,6 +35,9 @@ public class RefereeService {
     @Value("${services.bouncer.url}")
     private String bouncerUrl;
 
+    @Value("${services.scribe.url}")
+    private String scribeUrl;
+
     public TurnResult processAction(ActionRequest action) {
         UUID matchId  = action.getMatchId();
         String lockValue = null;
@@ -72,13 +75,6 @@ public class RefereeService {
     private MatchState applyResultToState(MatchState old, TurnResult result) {
         TurnResult.MatchStateSnapshot snap = result.getStateAfter();
 
-        // Calculate enemies killed this turn
-        long enemiesKilledThisTurn = old.getPlayers().stream()
-                .filter(MatchState.PlayerState::isAlive)
-                .filter(oldP -> snap.getPlayers().stream()
-                        .anyMatch(snapP -> snapP.getPlayerId().equals(oldP.getPlayerId()) && !snapP.isAlive()))
-                .count();
-
         List<MatchState.PlayerState> players = snap.getPlayers().stream()
                 .map(ps -> {
                     MatchState.PlayerState oldPlayer = old.getPlayerByPlayerId(ps.getPlayerId());
@@ -90,53 +86,80 @@ public class RefereeService {
                                     .map(et -> MatchState.ActiveEffect.builder().effectType(et).magnitude(1).turnsRemaining(1).build())
                                     .toList();
 
-                    // Get the player's historic stats from the start of the turn
-                    int finalKills = oldPlayer != null ? oldPlayer.getKills() : 0;
-                    int finalDamage = oldPlayer != null ? oldPlayer.getDamageDealt() : 0;
-                    int finalHealing = oldPlayer != null ? oldPlayer.getHealingDone() : 0;
-
-                    // THE FIX: ONLY add this turn's new stats if this player was the ACTOR!
-                    if (oldPlayer != null && oldPlayer.getPlayerId().equals(result.getActorPlayerId())) {
-                        finalKills += enemiesKilledThisTurn;
-                        finalDamage += result.getDamageDealt();
-                        finalHealing += result.getHealingDone();
-                    }
-
                     return MatchState.PlayerState.builder()
                             .matchPlayerId(oldPlayer != null ? oldPlayer.getMatchPlayerId() : null)
-                            .playerId(ps.getPlayerId()).username(ps.getUsername())
-                            .team(ps.getTeam()).turnOrder(ps.getTurnOrder())
-                            .characterClass(oldPlayer != null ? oldPlayer.getCharacterClass() : "")
-                            .hp(ps.getHp()).maxHp(ps.getMaxHp()).mana(ps.getMana()).maxMana(ps.getMaxMana())
-                            .alive(ps.isAlive()).effects(new ArrayList<>(detailedEffects))
-                            // Assign the cleanly separated stats
-                            .kills(finalKills)
-                            .damageDealt(finalDamage)
-                            .healingDone(finalHealing)
+                            .playerId(ps.getPlayerId())
+                            .username(ps.getUsername())
+                            .team(ps.getTeam())
+                            .turnOrder(ps.getTurnOrder())
+                            .characterClass(ps.getCharacterClass() != null ? ps.getCharacterClass() : "BARBARIAN")
+                            .hp(ps.getHp())
+                            .maxHp(ps.getMaxHp())
+                            .mana(ps.getMana())
+                            .maxMana(ps.getMaxMana())
+                            .alive(ps.isAlive())
+                            .effects(new ArrayList<>(detailedEffects))
+                            .kills(ps.getKills())
+                            .damageDealt(ps.getDamageDealt())
+                            .healingDone(ps.getHealingDone())
                             .build();
                 }).toList();
 
-        return MatchState.builder().matchId(old.getMatchId()).status(snap.getStatus())
-                .turnNumber(snap.getTurnNumber()).currentTurnOrder(snap.getNextTurnOrder())
-                .winnerTeam(snap.getWinnerTeam()).players(new ArrayList<>(players)).build();
+        return MatchState.builder()
+                .matchId(old.getMatchId())
+                .status(snap.getStatus() != null ? snap.getStatus() : "IN_PROGRESS")
+                .turnNumber(snap.getTurnNumber())
+                .currentTurnOrder(snap.getNextTurnOrder())
+                .winnerTeam(snap.getWinnerTeam())
+                .players(new ArrayList<>(players))
+                .build();
     }
 
     private void persistTurnToVault(TurnResult result) {
         try {
+            // Build a manual list of effects to match the Vault's expected "type" field
+            List<Map<String, Object>> vaultEffects = new ArrayList<>();
+            if (result.getEffectsApplied() != null) {
+                for (TurnResult.EffectApplied eff : result.getEffectsApplied()) {
+                    Map<String, Object> vEff = new HashMap<>();
+                    // THE FIX: The Vault DTO expects "type", but the Referee uses "effectType"
+                    vEff.put("type", eff.getEffectType());
+                    vEff.put("targetPlayerId", eff.getTargetPlayerId());
+                    vEff.put("magnitude", eff.getMagnitude());
+                    vEff.put("turns", eff.getTurns());
+                    vaultEffects.add(vEff);
+                }
+            }
+
+            // Scrub the snapshot for safety before sending
+            TurnResult.MatchStateSnapshot safeSnap = result.getStateAfter();
+            if (safeSnap.getStatus() == null) safeSnap.setStatus("IN_PROGRESS");
+            if (safeSnap.getPlayers() != null) {
+                safeSnap.getPlayers().forEach(p -> {
+                    if (p.getCharacterClass() == null) p.setCharacterClass("BARBARIAN");
+                });
+            }
+
             Map<String, Object> req = new HashMap<>();
             req.put("matchId", result.getMatchId());
             req.put("actorPlayerId", result.getActorPlayerId());
             req.put("actionType", result.getActionType().name());
-            req.put("targetPlayerId", result.getTargetPlayerId() != null ? result.getTargetPlayerId() : null);
+            req.put("targetPlayerId", result.getTargetPlayerId());
             req.put("damageDealt", result.getDamageDealt());
             req.put("manaUsed", result.getManaUsed());
-            req.put("effectsApplied", result.getEffectsApplied());
-            req.put("stateSnapshot", result.getStateAfter());
+
+            // Use the newly mapped list with the correct "type" keys
+            req.put("effectsApplied", vaultEffects);
+
+            req.put("stateSnapshot", safeSnap);
             req.put("turnNumber", result.getTurnNumber());
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+
             restTemplate.postForObject(vaultUrl + "/api/vault/matches/turn",
                     new HttpEntity<>(req, headers), Object.class);
+
         } catch (Exception e) {
             log.error("Failed to persist turn to Vault for match {}: {}", result.getMatchId(), e.getMessage());
         }
@@ -149,7 +172,6 @@ public class RefereeService {
             event.put("winnerTeam", winnerTeam);
             event.put("totalTurns", finalState.getTurnNumber());
 
-            // FIX 4: Send the stats to Scribe!
             event.put("players", finalState.getPlayers().stream()
                     .map(p -> {
                         Map<String, Object> playerMap = new HashMap<>();
@@ -164,11 +186,10 @@ public class RefereeService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            String scribeUrl = bouncerUrl.replace("8080", "8084");
+
             restTemplate.postForObject(scribeUrl + "/api/scribe/game-over",
                     new HttpEntity<>(event, headers), Object.class);
         } catch (Exception e) {
-            // FIX 5: Print the full error just in case it crashes again
             log.error("Failed to notify Scribe for match {}", matchId, e);
         }
     }
