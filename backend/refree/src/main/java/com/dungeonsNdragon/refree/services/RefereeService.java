@@ -78,13 +78,41 @@ public class RefereeService {
         List<MatchState.PlayerState> players = snap.getPlayers().stream()
                 .map(ps -> {
                     MatchState.PlayerState oldPlayer = old.getPlayerByPlayerId(ps.getPlayerId());
-                    List<MatchState.ActiveEffect> detailedEffects =
-                            oldPlayer != null && oldPlayer.getEffects() != null
-                                    ? oldPlayer.getEffects().stream()
-                                    .filter(e -> ps.getActiveEffects().contains(e.getEffectType())).toList()
-                                    : ps.getActiveEffects().stream()
-                                    .map(et -> MatchState.ActiveEffect.builder().effectType(et).magnitude(1).turnsRemaining(1).build())
-                                    .toList();
+                    List<MatchState.ActiveEffect> detailedEffects = new ArrayList<>();
+                    if (ps.getActiveEffects() != null) {
+                        for (String type : ps.getActiveEffects()) {
+                            // 1. Try to find in existing effects (minus 1 turn if it was ticked)
+                            MatchState.ActiveEffect existing = oldPlayer != null && oldPlayer.getEffects() != null
+                                    ? oldPlayer.getEffects().stream().filter(e -> e.getEffectType().equals(type)).findFirst().orElse(null)
+                                    : null;
+                            
+                            if (existing != null) {
+                                // Important: We trust the GameEngine's tick. 
+                                // If it's still in the snapshot, it hasn't expired.
+                                // We decrement turns if it was the actor's turn (since computer does that)
+                                int turns = existing.getTurnsRemaining();
+                                if (ps.getPlayerId().equals(result.getActorPlayerId())) {
+                                    turns = Math.max(1, turns - 1); // Minimum 1 if it's still in snapshot
+                                }
+                                detailedEffects.add(MatchState.ActiveEffect.builder()
+                                        .effectType(type).magnitude(existing.getMagnitude()).turnsRemaining(turns).build());
+                            } else {
+                                // 2. Try to find in newly applied effects
+                                TurnResult.EffectApplied applied = result.getEffectsApplied() != null
+                                        ? result.getEffectsApplied().stream().filter(ea -> ea.getTargetPlayerId().equals(ps.getPlayerId()) && ea.getEffectType().equals(type)).findFirst().orElse(null)
+                                        : null;
+                                
+                                if (applied != null) {
+                                    detailedEffects.add(MatchState.ActiveEffect.builder()
+                                            .effectType(type).magnitude(applied.getMagnitude()).turnsRemaining(applied.getTurns()).build());
+                                } else {
+                                    // Fallback
+                                    detailedEffects.add(MatchState.ActiveEffect.builder()
+                                            .effectType(type).magnitude(1).turnsRemaining(1).build());
+                                }
+                            }
+                        }
+                    }
 
                     return MatchState.PlayerState.builder()
                             .matchPlayerId(oldPlayer != null ? oldPlayer.getMatchPlayerId() : null)

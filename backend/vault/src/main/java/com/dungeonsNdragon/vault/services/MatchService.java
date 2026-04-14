@@ -43,10 +43,10 @@ public class MatchService {
     private final ObjectMapper objectMapper;
 
     private static final Map<MatchPlayer.CharacterClass, int[]> CLASS_STATS = Map.of(
-            MatchPlayer.CharacterClass.BARBARIAN, new int[]{150, 60},
-            MatchPlayer.CharacterClass.KNIGHT,    new int[]{120, 80},
-            MatchPlayer.CharacterClass.RANGER,    new int[]{90,  110},
-            MatchPlayer.CharacterClass.WIZARD,    new int[]{80,  140}
+            MatchPlayer.CharacterClass.BARBARIAN, new int[]{140, 80},
+            MatchPlayer.CharacterClass.KNIGHT,    new int[]{160, 90},
+            MatchPlayer.CharacterClass.RANGER,    new int[]{100, 110},
+            MatchPlayer.CharacterClass.WIZARD,    new int[]{90,  140}
     );
 
     @Transactional
@@ -158,8 +158,9 @@ public class MatchService {
                         .magnitude(ea.getMagnitude()).turnsRemaining(ea.getTurns()).build());
             }
         }
-        effectRepo.decrementAllTurnsForMatch(req.getMatchId());
-        effectRepo.deleteExpiredEffectsForMatch(req.getMatchId());
+        // REDUNDANT: Removed manual effect ticking. The Referee is the source of truth.
+        // effectRepo.decrementAllTurnsForMatch(req.getMatchId());
+        // effectRepo.deleteExpiredEffectsForMatch(req.getMatchId());
         TurnLog turnLog = TurnLog.builder()
                 .matchId(req.getMatchId()).turnNumber(req.getTurnNumber())
                 .actorPlayerId(req.getActorPlayerId()).actionType(req.getActionType())

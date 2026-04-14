@@ -153,6 +153,8 @@ public class GameEngine {
                     e.setMana(Math.max(0, e.getMana() - drained));
                     manaDrained += drained;
                 }
+                // Wizard gains the drained mana
+                manaUsed -= manaDrained;
             }
             case "CATACLYSM" -> {
                 manaUsed = 50;

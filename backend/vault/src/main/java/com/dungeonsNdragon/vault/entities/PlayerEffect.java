@@ -58,6 +58,7 @@ public class PlayerEffect {
     public enum EffectType {
         BIND,
         INVISIBLE,
+        SHADOW_MELD,
         ATTACK_BUFF,
         DEFENSE_BUFF,
         ATTACK_DEBUFF,
