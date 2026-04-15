@@ -24,10 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 class ScribeController {
     private final ScribeService scribeService;
 
-    /**
-     * Called by Referee when match ends.
-     * Returns 202 immediately — all processing is @Async.
-     */
     @PostMapping("/game-over")
     public ResponseEntity<Map<String, String>> handleGameOver(@RequestBody GameOverEvent event) {
         log.info("Game over event received for match {}", event.getMatchId());
@@ -35,13 +31,16 @@ class ScribeController {
         return ResponseEntity.accepted().body(Map.of("status", "processing"));
     }
 
-    /**
-     * Public leaderboard — reads from Postgres materialized view.
-     */
     @GetMapping("/leaderboard")
-    public ResponseEntity<List<Map<String, Object>>> getLeaderboard(
+    public ResponseEntity<?> getLeaderboard(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(scribeService.getLeaderboard(page, size));
+
+        // LEADERBOARD FETCH COMMENTED OUT
+        // return ResponseEntity.ok(scribeService.getLeaderboard(page, size));
+
+        // Fetch logs from Vault and return them
+        List<Map<String, Object>> logs = scribeService.getBattleLogsFromVault();
+        return ResponseEntity.ok(logs);
     }
 }
