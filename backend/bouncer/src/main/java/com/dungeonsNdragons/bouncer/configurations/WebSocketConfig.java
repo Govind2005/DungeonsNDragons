@@ -40,10 +40,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins(
-                    "https://dungeons-n-dragons-psi.vercel.app", 
-                    "http://localhost:5173"
-                )
+                .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
 
