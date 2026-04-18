@@ -20,7 +20,8 @@ function AppContent() {
   const performAttack = async (abilityId: string, targets: string[]) => {
     if (!matchId || !user) return;
     try {
-      await fetch(`http://localhost:8080/api/game/action`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      await fetch(`${apiUrl}/api/game/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,7 +32,7 @@ function AppContent() {
           actorPlayerId: user.id,
           actionType: abilityId,
           targetPlayerId: targets.length > 0 ? targets[0] : null,
-          currentTurn: matchCurrentTurn,
+          currentTurnOrder: matchCurrentTurn,
         }),
       });
     } catch (err) {
@@ -42,7 +43,8 @@ function AppContent() {
   const performDefense = async (abilityId: string) => {
     if (!matchId || !user) return;
     try {
-      await fetch(`http://localhost:8080/api/game/action`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      await fetch(`${apiUrl}/api/game/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +54,7 @@ function AppContent() {
           matchId,
           actorPlayerId: user.id,
           actionType: abilityId,
-          currentTurn: matchCurrentTurn,
+          currentTurnOrder: matchCurrentTurn,
         }),
       });
     } catch (err) {

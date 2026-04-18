@@ -110,18 +110,23 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const handleMatchStart = useCallback((event: any) => {
     console.log('Match started:', event);
     setMatchId(event.matchId);
-    setMatchPlayers(event.players.map((p: any) => ({
-      playerId: p.playerId,
-      username: p.username,
-      team: p.team,
-      turnOrder: p.turnOrder || 0,
-      characterClass: p.characterClass ? (p.characterClass.toLowerCase() as CharacterClass) : undefined,
-      isReady: p.isReady || false,
-      currentHp: p.currentHp,
-      maxHp: p.maxHp,
-      currentMana: p.currentMana,
-      maxMana: p.maxMana,
-    })));
+    setMatchPlayers(event.players.map((p: any) => {
+      const charClass = p.characterClass ? (p.characterClass.toLowerCase() as CharacterClass) : undefined;
+      const charData = charClass ? CHARACTERS[charClass] : null;
+      
+      return {
+        playerId: p.playerId,
+        username: p.username,
+        team: p.team,
+        turnOrder: p.turnOrder || 0,
+        characterClass: charClass,
+        isReady: p.isReady || false,
+        currentHp: p.currentHp || charData?.maxHp || 100,
+        maxHp: p.maxHp || charData?.maxHp || 100,
+        currentMana: p.currentMana || charData?.maxMana || 50,
+        maxMana: p.maxMana || charData?.maxMana || 50,
+      };
+    }));
     setMatchCurrentTurn(event.currentTurn || 1);
   }, []);
 
@@ -146,7 +151,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const createRoom = useCallback(
     async (playerId: string, authToken: string): Promise<string> => {
       try {
-        const response = await fetch('http://localhost:8080/api/lobby/create', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/api/lobby/create`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -190,7 +196,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
           payload.characterClass = characterClass.toUpperCase();
         }
 
-        const response = await fetch(`http://localhost:8080/api/lobby/join/${code}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/api/lobby/join/${code}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -226,7 +233,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
           throw new Error('No player ID available');
         }
 
-        const response = await fetch(`http://localhost:8080/api/lobby/rooms/${currentRoom.roomCode}/select-character?characterClass=${characterClass.toUpperCase()}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/api/lobby/rooms/${currentRoom.roomCode}/select-character?characterClass=${characterClass.toUpperCase()}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -257,7 +265,8 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
           throw new Error('No player ID available');
         }
 
-        const response = await fetch(`http://localhost:8080/api/lobby/rooms/ready?roomCode=${currentRoom.roomCode}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const response = await fetch(`${apiUrl}/api/lobby/rooms/ready?roomCode=${currentRoom.roomCode}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -317,12 +326,16 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
                 return stateAfter.players.map((p: any) => {
                   // Preserve characterClass from previous state since backend snapshot doesn't include it
                   const prevPlayer = prev.find((pp: GamePlayer) => pp.playerId === p.playerId);
+                  const charClass = p.characterClass 
+                    ? (p.characterClass.toLowerCase() as CharacterClass) 
+                    : prevPlayer?.characterClass;
+                  
                   return {
                     playerId: p.playerId,
                     username: p.username,
                     team: p.team,
                     turnOrder: p.turnOrder,
-                    characterClass: prevPlayer?.characterClass,
+                    characterClass: charClass,
                     isReady: true,
                     currentHp: p.hp,
                     maxHp: p.maxHp,

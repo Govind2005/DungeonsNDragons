@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Sign in error:', error);
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error('Could not connect to the authentication server. Please ensure the backend is running at http://localhost:8080.');
+        throw new Error(`Could not connect to the authentication server. Please ensure the backend is running at ${import.meta.env.VITE_API_URL || 'http://localhost:8080'}.`);
       }
       throw error;
     }
