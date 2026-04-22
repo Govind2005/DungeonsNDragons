@@ -23,6 +23,7 @@ public class ScribeProxyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String url = scribeUrl + "/api/scribe/leaderboard?page=" + page + "&size=" + size;
-        return restTemplate.getForEntity(url, Object.class);
+        ResponseEntity<Object> response = restTemplate.getForEntity(url, Object.class);
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
     }
 }

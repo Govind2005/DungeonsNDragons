@@ -42,7 +42,8 @@ public class LobbyProxyController {
         Map<String, String> request = Map.of("playerId", playerId, "username", username);
 
         // 3. Forward to the internal Lobby Manager
-        return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/create", request, Object.class);
+        ResponseEntity<Object> response = restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/create", request, Object.class);
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
     }
 
     @PostMapping("/join/{roomCode}")
@@ -59,8 +60,9 @@ public class LobbyProxyController {
             request.put("characterClass", payload.get("characterClass"));
         }
 
-        return restTemplate.postForEntity(
+        ResponseEntity<Object> response = restTemplate.postForEntity(
                 lobbyUrl + "/api/lobby/rooms/" + roomCode + "/join", request, Object.class);
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
     }
 
     @PostMapping("/rooms/quick-join")
@@ -74,7 +76,8 @@ public class LobbyProxyController {
         if (payload != null && payload.get("characterClass") != null) {
             request.put("characterClass", payload.get("characterClass"));
         }
-        return restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
+        ResponseEntity<Object> response = restTemplate.postForEntity(lobbyUrl + "/api/lobby/rooms/quick-join", request, Object.class);
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
     }
 
     @PostMapping("/rooms/{roomCode}/select-character")
@@ -112,6 +115,7 @@ public class LobbyProxyController {
 
     @GetMapping("/rooms/{roomCode}")
     public ResponseEntity<Object> getRoom(@PathVariable String roomCode) {
-        return restTemplate.getForEntity(lobbyUrl + "/api/lobby/rooms/" + roomCode, Object.class);
+        ResponseEntity<Object> response = restTemplate.getForEntity(lobbyUrl + "/api/lobby/rooms/" + roomCode, Object.class);
+        return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
     }
 }
