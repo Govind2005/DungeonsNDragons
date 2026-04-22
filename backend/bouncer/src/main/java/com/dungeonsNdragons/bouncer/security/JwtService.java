@@ -28,6 +28,7 @@ public JwtService(
 }
 
 public String issueToken(UUID playerId, String email, String username) {
+    log.debug("Issuing new JWT token for player {} ({})", username, playerId);
     Instant now = Instant.now();
     return JWT.create()
         .withIssuer("dnd-game")
@@ -58,6 +59,7 @@ public String extractUsername(String token) {
 
 public String extractFromHeader(String authHeader) {
     if (authHeader != null && authHeader.startsWith("Bearer ")) return authHeader.substring(7);
+    log.warn("Failed to extract JWT from Authorization header: missing or malformed");
     throw new IllegalArgumentException("Missing or malformed Authorization header");
 }
 }

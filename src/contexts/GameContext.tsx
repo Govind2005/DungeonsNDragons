@@ -8,7 +8,7 @@ import {
   MatchStartEvent,
   subscribeToMatch,
 } from '../lib/websocket';
-import { CharacterClass } from '../lib/gameData';
+import { CHARACTERS, CharacterClass } from '../lib/gameData';
 
 export interface GamePlayer {
   playerId: string;

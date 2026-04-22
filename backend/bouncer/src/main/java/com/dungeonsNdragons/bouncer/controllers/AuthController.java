@@ -40,11 +40,14 @@ public class AuthController {
      */
     @PostMapping("/google")
     public ResponseEntity<AuthResponse> loginWithGoogle(@RequestBody GoogleAuthRequest req) {
+        log.info("Received Google login request");
         try {
             String verifyUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + req.getIdToken();
             ResponseEntity<Map> googleResponse = restTemplate.getForEntity(verifyUrl, Map.class);
-            if (!googleResponse.getStatusCode().is2xxSuccessful() || googleResponse.getBody() == null)
+            if (!googleResponse.getStatusCode().is2xxSuccessful() || googleResponse.getBody() == null) {
+                log.warn("Invalid Google token provided");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(AuthResponse.error("Invalid Google token"));
+            }
 
             Map<String, Object> claims = googleResponse.getBody();
             String googleId = (String) claims.get("sub");
@@ -58,6 +61,7 @@ public class AuthController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            log.debug("Found Google claims for {} ({}). Forwarding to Vault for upsert", email, googleId);
             ResponseEntity<Map> vaultResp = restTemplate.postForEntity(
                     vaultUrl + "/api/vault/players/upsert", new HttpEntity<>(upsertReq, headers), Map.class);
 
@@ -78,13 +82,16 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getMe(@RequestHeader("Authorization") String authHeader) {
+        log.info("Fetching current user info (/me)");
         try {
             var jwt = jwtService.verify(jwtService.extractFromHeader(authHeader));
+            log.debug("Successfully verified token for subject {}", jwt.getSubject());
             return ResponseEntity.ok(Map.of(
                     "playerId", jwt.getSubject(),
                     "username", jwt.getClaim("username").asString(),
                     "email", jwt.getClaim("email").asString()));
         } catch (Exception e) {
+            log.error("Failed to fetch user info: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
