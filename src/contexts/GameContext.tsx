@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import {
   connectWebSocket,
@@ -76,8 +76,17 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   const [matchWinnerTeam, setMatchWinnerTeam] = useState<number | null>(null);
   const [matchStatus, setMatchStatus] = useState<string | null>(null);
 
+  // Ref that always holds the latest currentPlayerId without causing stale closures
+  const currentPlayerIdRef = useRef<string | null>(null);
+  useEffect(() => { currentPlayerIdRef.current = currentPlayerId; }, [currentPlayerId]);
+
   const handleLobbyEvent = useCallback((event: LobbyEvent) => {
     console.log('Lobby event:', event);
+    // Only process events for rooms this player has actually joined.
+    // Prevents ghost-joining another player's room via the global /topic/lobby broadcast.
+    const myId = currentPlayerIdRef.current;
+    if (!myId || !event.players?.some(p => p.playerId === myId)) return;
+
     if (event.roomCode && event.players) {
       const players: GamePlayer[] = event.players.map(p => ({
         playerId: p.playerId,
@@ -372,10 +381,15 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     }
   }, [matchId, isConnected]);
 
-  // Auto-initialize WebSocket when token becomes available
+  // Auto-initialize WebSocket when token becomes available.
+  // Disconnect and reset when token is gone (logout).
   useEffect(() => {
     if (token && !isConnected) {
       initializeWebSocket(token);
+    } else if (!token && isConnected) {
+      disconnectWebSocket();
+      setIsConnected(false);
+      setStompClient(null);
     }
   }, [token, isConnected, initializeWebSocket]);
 
