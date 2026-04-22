@@ -52,16 +52,19 @@ public class RefereeService {
             TurnResult result = engine.compute(currentState, action);
 
             if (!result.isValid()) {
-                log.info("Invalid action by {} in match {}: {}",
+                log.info("Referee: Invalid action by {} in match {}: {}",
                         action.getActorPlayerId(), matchId, result.getRejectionReason());
                 return result;
             }
 
+            log.debug("Referee: Action valid, computed result for match {}, updating state...", matchId);
             MatchState newState = applyResultToState(currentState, result);
             cache.writeState(newState);
+            log.debug("Referee: Persisting turn to Vault for match {}", matchId);
             persistTurnToVault(result);
 
             if (result.getWinnerTeam() != null) {
+                log.info("Referee: Match {} completed. Winner is team {}. Notifying Scribe.", matchId, result.getWinnerTeam());
                 notifyScribe(matchId, result.getWinnerTeam(), newState);
                 cache.evict(matchId);
             }
@@ -188,8 +191,9 @@ public class RefereeService {
             restTemplate.postForObject(vaultUrl + "/api/vault/matches/turn",
                     new HttpEntity<>(req, headers), Object.class);
 
+            log.debug("Referee: Successfully sent turn to Vault for match {}", result.getMatchId());
         } catch (Exception e) {
-            log.error("Failed to persist turn to Vault for match {}: {}", result.getMatchId(), e.getMessage());
+            log.error("CRITICAL ERROR: Failed to persist turn to Vault for match {}", result.getMatchId(), e);
         }
     }
 
@@ -217,8 +221,9 @@ public class RefereeService {
 
             restTemplate.postForObject(scribeUrl + "/api/scribe/game-over",
                     new HttpEntity<>(event, headers), Object.class);
+            log.debug("Referee: Successfully sent game over payload to Scribe for match {}", matchId);
         } catch (Exception e) {
-            log.error("Failed to notify Scribe for match {}", matchId, e);
+            log.error("CRITICAL ERROR: Failed to notify Scribe game over for match {}", matchId, e);
         }
     }
 }
