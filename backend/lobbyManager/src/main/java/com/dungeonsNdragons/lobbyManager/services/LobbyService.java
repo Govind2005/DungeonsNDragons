@@ -193,7 +193,7 @@ public class LobbyService {
             broadcastMatchStart(room, matchId, finalVaultState);
 
         } catch (Exception e) {
-            log.error("Failed to initialize match for room {}: {}", room.getRoomCode(), e.getMessage());
+            log.error("CRITICAL ERROR: Failed to initialize match for room {}", room.getRoomCode(), e);
 
             // 1. Reset the room status back to waiting
             room.setStatus(Room.RoomStatus.WAITING);
@@ -206,6 +206,7 @@ public class LobbyService {
             saveRoom(room);
             redis.opsForSet().add(AVAILABLE_ROOMS_KEY, room.getRoomCode());
 
+            log.info("Room {} reset to WAITING due to Match Initialization failure", room.getRoomCode());
             // 4. Tell the frontend about the reset so the screen updates
             broadcastRoomUpdate(room);
         }

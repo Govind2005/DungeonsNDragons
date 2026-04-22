@@ -290,6 +290,17 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
   }, []);
 
   const leaveRoom = useCallback(async () => {
+    if (roomCode && currentPlayerId) {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        await fetch(`${apiUrl}/api/lobby/rooms/${roomCode}/leave?playerId=${currentPlayerId}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch (err) {
+        console.error('Failed to notify backend of room leave:', err);
+      }
+    }
     setCurrentRoom(null);
     setRoomCode(null);
     setCurrentPlayerId(null);
@@ -298,7 +309,7 @@ export function GameProvider({ children, token }: { children: ReactNode; token: 
     setMatchCurrentTurn(0);
     setMatchWinnerTeam(null);
     setMatchStatus(null);
-  }, []);
+  }, [roomCode, currentPlayerId, token]);
 
   // Handle Match Subscriptions
   useEffect(() => {

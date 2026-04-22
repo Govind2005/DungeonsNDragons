@@ -65,7 +65,7 @@ const STAT_BAR = ({
 );
 
 export function LobbyScreen({ onNavigateTo }: { onNavigateTo: (screen: string) => void }) {
-  const { createRoom, joinRoom, currentRoom, selectCharacter, setSelectedCharacter, selectedCharacter, playerReady, isConnected, matchId, matchPlayers } = useGame();
+  const { createRoom, joinRoom, currentRoom, selectCharacter, setSelectedCharacter, selectedCharacter, playerReady, isConnected, matchId, matchPlayers, leaveRoom } = useGame();
   const { user, token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);

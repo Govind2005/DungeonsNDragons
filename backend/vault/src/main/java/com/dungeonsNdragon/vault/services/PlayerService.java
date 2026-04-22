@@ -30,7 +30,7 @@ public class PlayerService {
                             .email(req.getEmail())
                             .wins(0).losses(0).xp(0)
                             .build();
-                    log.info("Creating new player: {}", req.getEmail());
+                    log.info("Vault PlayerService: Creating new player: {}", req.getEmail());
                     return playerRepo.save(newPlayer);
                 });
     }
@@ -52,6 +52,7 @@ public class PlayerService {
             p.setLosses(p.getLosses() + 1);
         p.setXp(p.getXp() + req.getXpGained());
         playerRepo.save(p);
+        log.debug("Vault PlayerService: Stats updated for player {} - wins: {}, losses: {}, xp: {}", p.getId(), p.getWins(), p.getLosses(), p.getXp());
     }
 
     private PlayerResponse toResponse(Player p) {

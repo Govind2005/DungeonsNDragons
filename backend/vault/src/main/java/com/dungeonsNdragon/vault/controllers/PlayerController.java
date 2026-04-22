@@ -18,25 +18,31 @@ import com.dungeonsNdragon.vault.services.PlayerService;
 
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestController
 @RequestMapping("/api/vault/players")
 @RequiredArgsConstructor
+@Slf4j
 class PlayerController {
     private final PlayerService playerService;
 
     @PostMapping("/upsert")
     public ResponseEntity<PlayerResponse> upsert(@RequestBody CreatePlayerRequest req) {
+        log.info("Vault: Upserting player {}", req.getEmail());
         Player p = playerService.findOrCreatePlayer(req);
         return ResponseEntity.ok(playerService.getPlayer(p.getId()));
     }
 
     @GetMapping("/{playerId}")
     public ResponseEntity<PlayerResponse> get(@PathVariable UUID playerId) {
+        log.debug("Vault: Fetching player {}", playerId);
         return ResponseEntity.ok(playerService.getPlayer(playerId));
     }
 
     @PostMapping("/stats")
     public ResponseEntity<Void> updateStats(@RequestBody UpdateStatsRequest req) {
+        log.info("Vault: Updating stats for player {}", req.getPlayerId());
         playerService.updatePostGameStats(req);
         return ResponseEntity.ok().build();
     }

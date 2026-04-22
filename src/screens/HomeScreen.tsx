@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { Swords, Trophy, ChevronRight, ShieldCheck, Crosshair, Wand2 } from 'lucide-react';
+import { Swords, Trophy, ChevronRight, ShieldCheck, Crosshair, Wand2, LogOut } from 'lucide-react';
 
 interface HomeScreenProps {
   onStartQuest: () => void;
   onLeaderboards: () => void;
+  onLogout: () => void;
 }
 
-export function HomeScreen({ onStartQuest, onLeaderboards }: HomeScreenProps) {
+export function HomeScreen({ onStartQuest, onLeaderboards, onLogout }: HomeScreenProps) {
   const [mounted, setMounted] = useState(false);
   const [glitching, setGlitching] = useState(false);
   const [hoverQuest, setHoverQuest] = useState(false);
@@ -414,6 +415,13 @@ export function HomeScreen({ onStartQuest, onLeaderboards }: HomeScreenProps) {
           <span className="text-slate-700 tracking-widest">v1.0.0</span>
           <span className="text-slate-700 tracking-widest">DISTRIBUTED SYSTEMS PROJECT</span>
           <span className="text-slate-700 tracking-widest">5-COMPONENT ARCHITECTURE</span>
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-red-400 transition-colors tracking-widest ml-4"
+          >
+            <LogOut className="w-3 h-3" />
+            LOGOUT
+          </button>
         </div>
       </div>
     </div>

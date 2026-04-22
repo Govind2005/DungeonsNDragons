@@ -13,7 +13,7 @@ import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { CharacterClass, Ability } from './lib/gameData';
 
 function AppContent() {
-  const { user, loading, token } = useAuth();
+  const { user, loading, token, signOut } = useAuth();
   const { currentScreen, setCurrentScreen } = useGameLogic(user?.id);
   const { matchId, matchPlayers, matchCurrentTurn, matchWinnerTeam, matchStatus, leaveRoom } = useGame();
 
@@ -113,6 +113,11 @@ function AppContent() {
     setCurrentScreen('lobby-join');
   };
 
+  const handleLogout = async () => {
+    await leaveRoom();
+    await signOut();
+  };
+
   const handleLeaderboards = async () => {
     await loadLeaderboard();
     setCurrentScreen('leaderboard');
@@ -142,6 +147,7 @@ function AppContent() {
         <HomeScreen
           onStartQuest={handleStartQuest}
           onLeaderboards={handleLeaderboards}
+          onLogout={handleLogout}
         />
       )}
 

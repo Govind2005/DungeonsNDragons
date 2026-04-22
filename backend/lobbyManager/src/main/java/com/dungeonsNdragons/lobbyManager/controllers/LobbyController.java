@@ -25,6 +25,7 @@ class LobbyController {
 
     @PostMapping("/rooms/create")
     public ResponseEntity<Object> createRoom(@RequestBody CreateRoomRequest req) {
+        log.info("LobbyController: Request to create room by player {}", req.getPlayerId());
         return ResponseEntity.ok(lobbyService.createRoom(req.getPlayerId(), req.getUsername()));
     }
 
@@ -32,12 +33,14 @@ class LobbyController {
     public ResponseEntity<Object> selectCharacter(@PathVariable String roomCode,
             @RequestParam(name="playerId") String playerId, 
             @RequestParam(name="characterClass") String characterClass) {
+        log.info("LobbyController: Player {} selecting character {} in room {}", playerId, characterClass, roomCode);
         lobbyService.selectCharacter(roomCode, playerId, characterClass);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/rooms/ready")
     public ResponseEntity<Object> playerReady(@RequestParam(name="roomCode") String roomCode, @RequestParam(name="playerId") String playerId) {
+        log.info("LobbyController: Player {} marking ready in room {}", playerId, roomCode);
         lobbyService.playerReady(roomCode, playerId);
         return ResponseEntity.ok().build();
     }
@@ -45,27 +48,33 @@ class LobbyController {
     @PostMapping("/rooms/{roomCode}/join")
     public ResponseEntity<Object> joinRoom(@PathVariable String roomCode,
             @RequestBody JoinRoomRequest req) {
+        log.info("LobbyController: Player {} requesting to join room {}", req.getPlayerId(), roomCode);
         return ResponseEntity.ok(lobbyService.joinRoom(
                 roomCode, req.getPlayerId(), req.getUsername(), req.getCharacterClass() != null ? req.getCharacterClass() : "BARBARIAN"));
     }
 
     @PostMapping("/rooms/quick-join")
     public ResponseEntity<Object> quickJoin(@RequestBody JoinRoomRequest req) {
+        log.info("LobbyController: Player {} requesting quick join", req.getPlayerId());
         return ResponseEntity.ok(lobbyService.quickJoin(
                 req.getPlayerId(), req.getUsername(), "BARBARIAN"));
     }
 
     @GetMapping("/rooms/{roomCode}")
     public ResponseEntity<Object> getRoom(@PathVariable String roomCode) {
+        log.debug("LobbyController: Fetching room {}", roomCode);
         Object room = lobbyService.getRoom(roomCode);
-        if (room == null)
+        if (room == null) {
+            log.warn("LobbyController: Room {} not found", roomCode);
             return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(room);
     }
 
     @DeleteMapping("/rooms/{roomCode}/leave")
     public ResponseEntity<Void> leaveRoom(@PathVariable String roomCode,
             @RequestParam(name="playerId") String playerId) {
+        log.info("LobbyController: Player {} leaving room {}", playerId, roomCode);
         lobbyService.leaveRoom(roomCode, playerId);
         return ResponseEntity.ok().build();
     }

@@ -53,7 +53,7 @@ public class ScribeService {
             log.info("Leaderboard refreshed after match {}", event.getMatchId());
 
         } catch (Exception e) {
-            log.error("Scribe failed for match {}: {}", event.getMatchId(), e.getMessage(), e);
+            log.error("CRITICAL ERROR: Scribe failed to process game over for match {}", event.getMatchId(), e);
         }
     }
 
@@ -98,9 +98,9 @@ public class ScribeService {
                     Void.class
             );
 
-            log.info("Battle log sent to Vault for match {}", event.getMatchId());
+            log.info("ScribeService: Battle log successfully sent to Vault for match {}", event.getMatchId());
         } catch (Exception e) {
-            log.warn("Could not save battle log to Vault for match {}: {}", event.getMatchId(), e.getMessage());
+            log.error("CRITICAL ERROR: Could not save battle log to Vault for match {}", event.getMatchId(), e);
         }
     }
 
@@ -115,7 +115,7 @@ public class ScribeService {
             );
             return response.getBody();
         } catch (Exception e) {
-            log.error("Failed to fetch battle logs from Vault: {}", e.getMessage());
+            log.error("CRITICAL ERROR: Failed to fetch battle logs from Vault", e);
             return new ArrayList<>();
         }
     }
@@ -127,9 +127,9 @@ public class ScribeService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             restTemplate.postForEntity(
                     vaultUrl + "/api/vault/players/stats", new HttpEntity<>(req, headers), Void.class);
-            log.debug("Updated player {} — won={}, xp+{}", playerId, won, xpGained);
+            log.debug("ScribeService: Updated player {} — won={}, xp+{}", playerId, won, xpGained);
         } catch (Exception e) {
-            log.error("Failed to update stats for player {}: {}", playerId, e.getMessage());
+            log.error("CRITICAL ERROR: Failed to update stats for player {}", playerId, e);
         }
     }
 

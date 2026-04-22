@@ -26,7 +26,7 @@ class ScribeController {
 
     @PostMapping("/game-over")
     public ResponseEntity<Map<String, String>> handleGameOver(@RequestBody GameOverEvent event) {
-        log.info("Game over event received for match {}", event.getMatchId());
+        log.info("ScribeController: Game over event received for match {}", event.getMatchId());
         scribeService.processGameOver(event);
         return ResponseEntity.accepted().body(Map.of("status", "processing"));
     }
@@ -35,12 +35,13 @@ class ScribeController {
     public ResponseEntity<?> getLeaderboard(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-
+        log.info("ScribeController: Fetching battle logs (leaderboard proxy) page {} size {}", page, size);
         // LEADERBOARD FETCH COMMENTED OUT
         // return ResponseEntity.ok(scribeService.getLeaderboard(page, size));
 
         // Fetch logs from Vault and return them
         List<Map<String, Object>> logs = scribeService.getBattleLogsFromVault();
+        log.debug("ScribeController: Successfully retrieved {} battle logs", logs.size());
         return ResponseEntity.ok(logs);
     }
 }

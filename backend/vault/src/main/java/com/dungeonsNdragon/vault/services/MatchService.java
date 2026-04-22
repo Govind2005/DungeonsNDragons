@@ -66,7 +66,7 @@ public class MatchService {
                     .build();
             matchPlayerRepo.save(mp);
         }
-        log.info("Created match {} with {} players", match.getId(), req.getPlayers().size());
+        log.info("Vault MatchService: Created match {} with {} players", match.getId(), req.getPlayers().size());
         return match;
     }
 
@@ -75,6 +75,7 @@ public class MatchService {
         Match match = getMatchOrThrow(matchId);
         match.setStatus(Match.MatchStatus.IN_PROGRESS);
         match.setStartedAt(Instant.now());
+        log.info("Vault MatchService: Match {} status updated to IN_PROGRESS", matchId);
         return matchRepo.save(match);
     }
 
@@ -145,7 +146,7 @@ public class MatchService {
                     // Explicitly save the updated entity to persist the new variables!
                     matchPlayerRepo.save(mp);
                 }
-                log.info("Synced stats for {} players from turn snapshot in match {}", snapshotPlayers.size(), req.getMatchId());
+                log.info("Vault MatchService: Synced stats for {} players from turn snapshot in match {}", snapshotPlayers.size(), req.getMatchId());
             }
         }
         if (req.getEffectsApplied() != null) {
@@ -168,6 +169,7 @@ public class MatchService {
                 .manaUsed(req.getManaUsed()).effectsApplied(req.getEffectsApplied())
                 .stateSnapshot(req.getStateSnapshot()).build();
         turnLogRepo.save(turnLog);
+        log.debug("Vault MatchService: Turn {} logged for match {}", req.getTurnNumber(), req.getMatchId());
         checkAndApplyWinCondition(req.getMatchId());
         return getMatchState(req.getMatchId());
     }
@@ -183,7 +185,7 @@ public class MatchService {
             match.setWinnerTeam(winnerTeam);
             match.setEndedAt(Instant.now());
             matchRepo.save(match);
-            log.info("Match {} ended — team {} wins", matchId, winnerTeam);
+            log.info("Vault MatchService: Match {} ended — team {} wins", matchId, winnerTeam);
         }
     }
 
@@ -192,6 +194,7 @@ public class MatchService {
         Match match = getMatchOrThrow(matchId);
         match.setStatus(Match.MatchStatus.ABANDONED);
         match.setEndedAt(Instant.now());
+        log.info("Vault MatchService: Match {} marked as ABANDONED", matchId);
         matchRepo.save(match);
     }
 
