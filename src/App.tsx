@@ -9,7 +9,7 @@ import { LoginScreen } from './screens/LoginScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { BattleScreen } from './screens/BattleScreen';
 import { ResultScreen } from './screens/ResultScreen';
-import { LeaderboardScreen } from './screens/LeaderboardScreen';
+import { BattleLogsScreen } from './screens/BattleLogsScreen';
 import { CharacterClass, Ability } from './lib/gameData';
 
 function AppContent() {
@@ -63,7 +63,7 @@ function AppContent() {
   };
 
   const [playerProfile, setPlayerProfile] = useState<any>(null);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [battleLogs, setBattleLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -90,11 +90,11 @@ function AppContent() {
     }
   };
 
-  const loadLeaderboard = () => {
+  const loadBattleLogs = () => {
     const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
     const sorted = [...profiles].sort((a: any, b: any) => b.xp - a.xp).slice(0, 50);
 
-    const formattedLeaderboard = sorted.map((profile: any, index: number) => ({
+    const formattedBattleLogs = sorted.map((profile: any, index: number) => ({
       rank: index + 1,
       username: profile.username,
       level: profile.level,
@@ -103,7 +103,7 @@ function AppContent() {
       losses: profile.total_losses,
     }));
 
-    setLeaderboard(formattedLeaderboard);
+    setBattleLogs(formattedBattleLogs);
   };
 
   const handleStartQuest = async () => {
@@ -118,9 +118,9 @@ function AppContent() {
     await signOut();
   };
 
-  const handleLeaderboards = async () => {
-    await loadLeaderboard();
-    setCurrentScreen('leaderboard');
+  const handleBattleLogs = async () => {
+    await loadBattleLogs();
+    setCurrentScreen('battle-logs');
   };
 
   const handleNavigateTo = (screen: string) => {
@@ -146,7 +146,7 @@ function AppContent() {
       {currentScreen === 'home' && (
         <HomeScreen
           onStartQuest={handleStartQuest}
-          onLeaderboards={handleLeaderboards}
+          onBattleLogs={handleBattleLogs}
           onLogout={handleLogout}
         />
       )}
@@ -242,9 +242,9 @@ function AppContent() {
         />
       )}
 
-      {currentScreen === 'leaderboard' && (
-        <LeaderboardScreen
-          leaderboard={leaderboard}
+      {currentScreen === 'battle-logs' && (
+        <BattleLogsScreen
+          battleLogs={battleLogs}
           currentUserId={user.id}
           onBack={() => setCurrentScreen('home')}
         />

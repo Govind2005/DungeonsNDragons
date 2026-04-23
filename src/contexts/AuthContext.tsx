@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('rpg_token', data.token);
       setToken(data.token);
 
-      // Ensure a profile exists for this new user so the game doesn't crash when loading leaderboards/profiles
+      // Ensure a profile exists for this new user so the game doesn't crash when loading battle logs/profiles
       const profiles = JSON.parse(localStorage.getItem('rpg_profiles') || '[]');
       if (!profiles.find((p: any) => p.id === loggedInUser.id)) {
         profiles.push({

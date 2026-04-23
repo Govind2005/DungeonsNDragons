@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 // import { supabase } from '../lib/supabase';
 import { CharacterClass, CHARACTERS } from '../lib/gameData';
 
-export type GameScreen = 'home' | 'login' | 'lobby' | 'lobby-join' | 'lobby-waiting' | 'battle' | 'result' | 'leaderboard';
+export type GameScreen = 'home' | 'login' | 'lobby' | 'lobby-join' | 'lobby-waiting' | 'battle' | 'result' | 'battle-logs';
 
 interface MatchPlayer {
   id: string;

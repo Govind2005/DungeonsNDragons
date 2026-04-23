@@ -3,11 +3,11 @@ import { Swords, Trophy, ChevronRight, ShieldCheck, Crosshair, Wand2, LogOut } f
 
 interface HomeScreenProps {
   onStartQuest: () => void;
-  onLeaderboards: () => void;
+  onBattleLogs: () => void;
   onLogout: () => void;
 }
 
-export function HomeScreen({ onStartQuest, onLeaderboards, onLogout }: HomeScreenProps) {
+export function HomeScreen({ onStartQuest, onBattleLogs, onLogout }: HomeScreenProps) {
   const [mounted, setMounted] = useState(false);
   const [glitching, setGlitching] = useState(false);
   const [hoverQuest, setHoverQuest] = useState(false);
@@ -332,9 +332,9 @@ export function HomeScreen({ onStartQuest, onLeaderboards, onLogout }: HomeScree
             </div>
           </button>
 
-          {/* LEADERBOARDS */}
+          {/* BATTLE LOGS */}
           <button
-            onClick={onLeaderboards}
+            onClick={onBattleLogs}
             onMouseEnter={() => setHoverLead(true)}
             onMouseLeave={() => setHoverLead(false)}
             className="group relative overflow-hidden transition-all duration-300"
@@ -363,7 +363,7 @@ export function HomeScreen({ onStartQuest, onLeaderboards, onLogout }: HomeScree
                 <Trophy className="w-5 h-5 text-black" />
               </div>
               <span className="text-black font-black tracking-widest" style={{ fontSize: 'clamp(0.9rem, 2vw, 1.25rem)' }}>
-                LEADERBOARDS
+                BATTLE LOGS
               </span>
               <ChevronRight
                 className="w-5 h-5 text-black/70 transition-transform duration-300"
