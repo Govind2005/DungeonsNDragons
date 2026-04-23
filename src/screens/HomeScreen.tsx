@@ -395,9 +395,9 @@ export function HomeScreen({ onStartQuest, onBattleLogs, onLogout }: HomeScreenP
         </div>
       </div>
 
-      {/* â”€â”€ BOTTOM STATUS BAR â”€â”€ */}
+      {/* ── BOTTOM STATUS BAR ── */}
       <div
-        className={`absolute bottom-0 left-0 right-0 border-t border-slate-800/60 bg-black/50 backdrop-blur-sm flex items-center justify-between px-6 py-2.5 transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute bottom-0 left-0 right-0 z-20 border-t border-slate-800/60 bg-black/50 backdrop-blur-sm flex items-center justify-between px-6 py-2.5 transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
         style={{ transitionDelay: '900ms' }}
       >
         <div className="flex items-center gap-4">
