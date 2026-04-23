@@ -61,6 +61,13 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
   const [shakingId, setShakingId] = useState<string | null>(null);
   const [cinematicAction, setCinematicAction] = useState<{ ability: Ability; player: BattlePlayer; isLeft: boolean } | null>(null);
 
+  // ── Hit / heal effect states ─────────────────────────────────────────────
+  const [hitEffect, setHitEffect] = useState<{ id: string; type: 'slash' | 'magic' | 'bind' | 'drain' } | null>(null);
+  const [healEffect, setHealEffect] = useState<string | null>(null);
+  const [floatingTexts, setFloatingTexts] = useState<
+    { uid: number; targetId: string; text: string; color: string }[]
+  >([]);
+
   const { user } = useAuth();
   const currentPlayer = players.find(p => p.position === currentTurn);
   const myPlayer = players.find(p => p.id === user?.id);
@@ -95,14 +102,45 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
     setTimeout(() => setShakingId(null), 500);
   }, []);
 
+  // Spawn a floating number above a character then auto-remove it
+  const spawnFloat = useCallback((targetId: string, text: string, color: string) => {
+    const uid = Date.now() + Math.random();
+    setFloatingTexts(prev => [...prev, { uid, targetId, text, color }]);
+    setTimeout(() => setFloatingTexts(prev => prev.filter(f => f.uid !== uid)), 1100);
+  }, []);
+
+  // Resolve which hit-effect flavour an ability maps to
+  const abilityHitType = (ab: Ability): 'slash' | 'magic' | 'bind' | 'drain' => {
+    if (ab.id === 'pinning_arrow' || ab.id === 'shield_bash') return 'bind';
+    if (ab.id === 'mind_siphon') return 'drain';
+    if (ab.id === 'arcane_burst' || ab.id === 'cataclysm') return 'magic';
+    return 'slash';
+  };
+
   const executeAction = useCallback((ability: Ability, targets: string[]) => {
     if (ability.type === 'attack') {
-      targets.forEach(id => triggerShake(id));
+      const flavour = abilityHitType(ability);
+      targets.forEach(id => {
+        triggerShake(id);
+        // Show the hit overlay on the target
+        setHitEffect({ id, type: flavour });
+        setTimeout(() => setHitEffect(null), 600);
+        // Floating damage number — use ability.damage if available, else generic "HIT"
+        const dmgText = ability.damage ? `-${ability.damage}` : 'HIT';
+        const dmgColor = flavour === 'magic' ? '#a78bfa' : flavour === 'bind' ? '#fbbf24' : flavour === 'drain' ? '#34d399' : '#f87171';
+        spawnFloat(id, dmgText, dmgColor);
+      });
       onAttack(ability.id, targets);
     } else {
+      // Defense / heal abilities — green pulse on the caster (myPlayer)
+      if (myPlayer) {
+        setHealEffect(myPlayer.id);
+        setTimeout(() => setHealEffect(null), 800);
+        spawnFloat(myPlayer.id, ability.effect?.includes('HP') ? '+HP' : ability.effect?.includes('mana') ? '+MP' : '✦', '#4ade80');
+      }
       onDefense(ability.id);
     }
-  }, [onAttack, onDefense, triggerShake]);
+  }, [onAttack, onDefense, triggerShake, spawnFloat, myPlayer]);
 
   const handleAbilityClick = (ability: Ability) => {
     if (!isMyTurn || !myPlayer || myPlayer.currentMana < ability.manaCost || cinematicAction) return;
@@ -213,15 +251,29 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
               onClick={() => !isDead && !p.isInvisible && setSelectedTargets([p.id])}
               className={`flex items-start gap-3 transition-all duration-300 ${isDead ? 'opacity-50 grayscale scale-90' : isActive ? 'scale-110 -translate-x-2' : isTarget ? 'scale-105 translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
-              <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                {p.isInvisible && <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-[2px] z-10 animate-pulse" />}
-                <img src={CHARACTER_HEADS[p.characterClass]} className={`w-full h-full object-cover scale-110 ${p.isInvisible ? 'opacity-40' : ''}`} alt="" />
+              {/* ── UNBOUND Character head avatar ── */}
+              <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                {/* Glow aura */}
+                <div className={`absolute inset-0 rounded-full blur-xl transition-opacity duration-300 ${
+                  isActive ? 'bg-cyan-400/70' : isTarget ? 'bg-red-500/70' : 'opacity-0'
+                }`} />
+
+                {/* Zoomed-in, borderless face */}
+                <img
+                  src={CHARACTER_HEADS[p.characterClass]}
+                  alt={p.characterClass}
+                  className={`relative z-10 w-24 h-24 max-w-none object-contain object-bottom drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)] transition-transform duration-300 ${
+                    isActive ? 'scale-[1.3] drop-shadow-[0_0_15px_rgba(34,211,238,0.7)]' 
+                    : isTarget ? 'scale-[1.2] drop-shadow-[0_0_15px_rgba(239,68,68,0.7)]' 
+                    : 'scale-[1.15]'
+                  } ${p.isInvisible ? 'opacity-40' : ''}`}
+                />
                 {isDead && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20 rounded-full">
                      <span className="text-[10px] font-black text-red-500 rotate-[-45deg] scale-125">DEAD</span>
                   </div>
                 )}
-                <div className="absolute top-0 right-0 w-6 h-6 bg-red-600 border border-slate-700 font-black text-[8px] flex items-center justify-center rotate-45 translate-x-1 -translate-y-1">
+                <div className="absolute -bottom-1 -right-1 z-20 w-6 h-6 bg-red-600 border border-slate-800 font-black text-[9px] text-white flex items-center justify-center rotate-45 shadow-xl">
                   <span className="-rotate-45">{p.position}</span>
                 </div>
               </div>
@@ -259,15 +311,29 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
               onClick={() => !isDead && !p.isInvisible && setSelectedTargets([p.id])}
               className={`flex items-start gap-3 flex-row-reverse transition-all duration-300 ${isDead ? 'opacity-50 grayscale scale-90' : isActive ? 'scale-110 translate-x-2' : isTarget ? 'scale-105 -translate-x-2' : 'opacity-80 scale-90 grayscale-[0.3] hover:grayscale-0 hover:opacity-100 cursor-pointer'}`}
             >
-              <div className={`relative w-16 h-16 bg-slate-900 border-4 rounded-full flex items-center justify-center overflow-hidden shadow-2xl ${isActive ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]' : isTarget ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'border-slate-700'}`}>
-                 {p.isInvisible && <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-[2px] z-10 animate-pulse" />}
-                <img src={CHARACTER_HEADS[p.characterClass]} className={`w-full h-full object-cover scale-110 ${p.isInvisible ? 'opacity-40' : ''}`} alt="" />
+              {/* ── UNBOUND Character head avatar ── */}
+              <div className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center">
+                {/* Glow aura */}
+                <div className={`absolute inset-0 rounded-full blur-xl transition-opacity duration-300 ${
+                  isActive ? 'bg-cyan-400/70' : isTarget ? 'bg-red-500/70' : 'opacity-0'
+                }`} />
+
+                {/* Zoomed-in, borderless face */}
+                <img
+                  src={CHARACTER_HEADS[p.characterClass]}
+                  alt={p.characterClass}
+                  className={`relative z-10 w-24 h-24 max-w-none object-contain object-bottom drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)] transition-transform duration-300 ${
+                    isActive ? 'scale-[1.3] drop-shadow-[0_0_15px_rgba(34,211,238,0.7)]' 
+                    : isTarget ? 'scale-[1.2] drop-shadow-[0_0_15px_rgba(239,68,68,0.7)]' 
+                    : 'scale-[1.15]'
+                  } ${p.isInvisible ? 'opacity-40' : ''}`}
+                />
                 {isDead && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20 rounded-full">
                      <span className="text-[10px] font-black text-red-500 rotate-[45deg] scale-125">DEAD</span>
                   </div>
                 )}
-                <div className="absolute top-0 left-0 w-6 h-6 bg-cyan-600 border border-slate-700 font-black text-[8px] flex items-center justify-center -rotate-45 -translate-x-1 -translate-y-1">
+                <div className="absolute -bottom-1 -left-1 z-20 w-6 h-6 bg-cyan-600 border border-slate-800 font-black text-[9px] text-white flex items-center justify-center -rotate-45 shadow-xl">
                   <span className="rotate-45">{p.position}</span>
                 </div>
               </div>
@@ -339,7 +405,62 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
             return (
               <div className={`relative transition-all duration-500 ${shakingId === blueRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
                 <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-lime-400/20 shadow-[0_0_50px_rgba(163,230,53,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
-                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-300 ${blueRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${blueRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`} alt="" />
+                
+                {/* ── Status auras ── */}
+                {blueRep.isBound && (
+                  <div className="absolute inset-x-4 inset-y-4 rounded-full border-4 border-dashed border-yellow-400/80 animate-[spin_3s_linear_infinite] shadow-[0_0_20px_rgba(250,204,21,0.5)] pointer-events-none z-20" />
+                )}
+                {blueRep.isWeakened && (
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-purple-400 text-[10px] font-black tracking-widest animate-bounce whitespace-nowrap pointer-events-none z-20">
+                    ▼ WEAKENED
+                  </div>
+                )}
+                {blueRep.isInvisible && (
+                  <div className="absolute inset-0 rounded-lg border-2 border-cyan-400/40 bg-cyan-400/5 animate-pulse pointer-events-none z-20" />
+                )}
+
+                {/* ── Sprite — hit flash / heal tint applied via filter classes ── */}
+                <img src={CHARACTERS[blueRep.characterClass].image} className={`h-80 w-auto object-contain transition-all duration-150 ${blueRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : shakingId === blueRep.id ? 'brightness-[3] saturate-[8] hue-rotate-[-40deg]' : healEffect === blueRep.id ? 'brightness-[1.6] saturate-[3] hue-rotate-[80deg]' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(163,230,53,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${blueRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`} alt="" />
+
+                {/* ── Hit type overlays ── */}
+                {hitEffect?.id === blueRep.id && hitEffect.type === 'slash' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.35s_ease-out] z-30">
+                    <Swords className="w-28 h-28 text-red-400 drop-shadow-[0_0_20px_rgba(248,113,113,0.9)]" />
+                  </div>
+                )}
+                {hitEffect?.id === blueRep.id && hitEffect.type === 'magic' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <Zap className="w-32 h-32 text-violet-400 drop-shadow-[0_0_30px_rgba(167,139,250,0.9)]" />
+                  </div>
+                )}
+                {hitEffect?.id === blueRep.id && hitEffect.type === 'bind' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <div className="w-28 h-28 rounded-full border-8 border-dashed border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.8)]" />
+                  </div>
+                )}
+                {hitEffect?.id === blueRep.id && hitEffect.type === 'drain' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <div className="w-28 h-28 rounded-full bg-emerald-400/20 border-4 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.8)]" />
+                  </div>
+                )}
+
+                {/* ── Heal pulse ring ── */}
+                {healEffect === blueRep.id && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <div className="w-48 h-48 rounded-full border-4 border-green-400 animate-[ping_0.7s_ease-out] shadow-[0_0_40px_rgba(74,222,128,0.7)]" />
+                  </div>
+                )}
+
+                {/* ── Floating damage / heal numbers ── */}
+                {floatingTexts.filter(f => f.targetId === blueRep.id).map(f => (
+                  <div
+                    key={f.uid}
+                    className="absolute top-4 left-1/2 -translate-x-1/2 text-4xl font-black pointer-events-none animate-[floatUp_1.1s_ease-out_forwards] drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] z-50"
+                    style={{ color: f.color }}
+                  >
+                    {f.text}
+                  </div>
+                ))}
                 {blueRep.currentHp <= 0 ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[-15deg] whitespace-nowrap z-30 shadow-[0_0_15px_rgba(220,38,38,0.5)]">
                     ELIMINATED
@@ -376,12 +497,67 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
             return (
               <div className={`relative transition-all duration-500 ${shakingId === redRep.id ? 'animate-[shake_0.4s_ease-in-out]' : ''} ${isTurnPlayer ? 'scale-110' : isTarget ? 'scale-100' : 'opacity-70 scale-90 grayscale-[0.2]'}`}>
                 <div className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-72 h-16 ${isTurnPlayer ? 'bg-red-600/25 shadow-[0_0_50px_rgba(239,68,68,0.35)] animate-pulse' : isTarget ? 'bg-red-600/10' : 'bg-slate-700/10'} blur-xl rounded-full`} />
+                
+                {/* ── Status auras ── */}
+                {redRep.isBound && (
+                  <div className="absolute inset-x-4 inset-y-4 rounded-full border-4 border-dashed border-yellow-400/80 animate-[spin_3s_linear_infinite] shadow-[0_0_20px_rgba(250,204,21,0.5)] pointer-events-none z-20" />
+                )}
+                {redRep.isWeakened && (
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-purple-400 text-[10px] font-black tracking-widest animate-bounce whitespace-nowrap pointer-events-none z-20">
+                    ▼ WEAKENED
+                  </div>
+                )}
+                {redRep.isInvisible && (
+                  <div className="absolute inset-0 rounded-lg border-2 border-cyan-400/40 bg-cyan-400/5 animate-pulse pointer-events-none z-20" />
+                )}
+
+                {/* ── Sprite — scaleX(-1) flips red side + hit flash / heal tint ── */}
                 <img
                   src={CHARACTERS[redRep.characterClass].image}
-                  className={`h-80 w-auto object-contain transition-all duration-300 ${redRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${redRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`}
+                  className={`h-80 w-auto object-contain transition-all duration-150 ${redRep.currentHp <= 0 ? 'grayscale brightness-50 opacity-50' : shakingId === redRep.id ? 'brightness-[3] saturate-[8] hue-rotate-[-40deg]' : healEffect === redRep.id ? 'brightness-[1.6] saturate-[3] hue-rotate-[80deg]' : isTurnPlayer ? 'drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]' : isTarget ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.3)] grayscale-[0.5] contrast-[1.1] opacity-90' : 'drop-shadow-none'} ${redRep.isInvisible ? 'opacity-30 blur-[1px] brightness-125' : ''}`}
                   style={{ transform: 'scaleX(-1)' }}
                   alt=""
                 />
+
+                {/* ── Hit type overlays ── */}
+                {hitEffect?.id === redRep.id && hitEffect.type === 'slash' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.35s_ease-out] z-30">
+                    <Swords className="w-28 h-28 text-red-400 drop-shadow-[0_0_20px_rgba(248,113,113,0.9)]" />
+                  </div>
+                )}
+                {hitEffect?.id === redRep.id && hitEffect.type === 'magic' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <Zap className="w-32 h-32 text-violet-400 drop-shadow-[0_0_30px_rgba(167,139,250,0.9)]" />
+                  </div>
+                )}
+                {hitEffect?.id === redRep.id && hitEffect.type === 'bind' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <div className="w-28 h-28 rounded-full border-8 border-dashed border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.8)]" />
+                  </div>
+                )}
+                {hitEffect?.id === redRep.id && hitEffect.type === 'drain' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-[ping_0.4s_ease-out] z-30">
+                    <div className="w-28 h-28 rounded-full bg-emerald-400/20 border-4 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.8)]" />
+                  </div>
+                )}
+
+                {/* ── Heal pulse ring ── */}
+                {healEffect === redRep.id && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+                    <div className="w-48 h-48 rounded-full border-4 border-green-400 animate-[ping_0.7s_ease-out] shadow-[0_0_40px_rgba(74,222,128,0.7)]" />
+                  </div>
+                )}
+
+                {/* ── Floating damage / heal numbers ── */}
+                {floatingTexts.filter(f => f.targetId === redRep.id).map(f => (
+                  <div
+                    key={f.uid}
+                    className="absolute top-4 left-1/2 -translate-x-1/2 text-4xl font-black pointer-events-none animate-[floatUp_1.1s_ease-out_forwards] drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] z-50"
+                    style={{ color: f.color }}
+                  >
+                    {f.text}
+                  </div>
+                ))}
                 {redRep.currentHp <= 0 ? (
                   <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-black tracking-widest px-3 py-1 skew-x-[15deg] shadow-[0_0_15px_rgba(220,38,38,0.5)] whitespace-nowrap z-30">
                     ELIMINATED
@@ -570,9 +746,9 @@ export function BattleScreen({ players, currentTurn, winnerTeam, status, onAttac
       {/* Keyframe styles */}
       <style>{`
         @keyframes floatUp {
-          0%   { transform: translateY(0)    scale(1);   opacity: 1; }
-          60%  { transform: translateY(-40px) scale(1.2); opacity: 1; }
-          100% { transform: translateY(-70px) scale(0.9); opacity: 0; }
+          0%   { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1.4); }
+          60%  { opacity: 1; transform: translateX(-50%) translateY(-40px) scale(1.1); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-70px) scale(0.9); }
         }
         @keyframes shake {
           0%,100% { transform: translateX(0); }
